@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend-app
     permissions:
       contents: "read"
       id-token: "write"
@@ -109,6 +112,7 @@ jobs:
 
       # Build and tag the Docker image
       - name: Build and tag Docker image
+        working-directory: ./frontend-app
         run: |
           docker build -t ${{ env.ARTIFACT_REGION }}/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:latest \
                        -t ${{ env.ARTIFACT_REGION }}/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:release \
