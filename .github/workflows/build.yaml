@@ -15,91 +15,44 @@ jobs:
       contents: "read"
       id-token: "write"
     env:
-      IMAGE_NAME: napfi-ai # your image name
-      PROJECT_ID: napfi-ai # your project id
-      ARTIFACT_REGION: asia-southeast2-docker.pkg.dev # Artifact Registry Region
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }} # Telegram chat ID for notifications
-      PACKAGE_MANAGER: bun # Default package manager
+      IMAGE_NAME: napfi-ai
+      PROJECT_ID: napfi-ai
+      ARTIFACT_REGION: asia-southeast2-docker.pkg.dev
+      PACKAGE_MANAGER: bun
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Detect package manager
-        id: detect-package-manager
-        run: |
-          if [ -f "./bun.lockb" ]; then
-            echo "PACKAGE_MANAGER=bun" >> $GITHUB_ENV
-            echo "detected=bun" >> $GITHUB_OUTPUT
-          elif [ -f "./yarn.lock" ]; then
-            echo "PACKAGE_MANAGER=yarn" >> $GITHUB_ENV
-            echo "detected=yarn" >> $GITHUB_OUTPUT
-          else
-            echo "PACKAGE_MANAGER=npm" >> $GITHUB_ENV
-            echo "detected=npm" >> $GITHUB_OUTPUT
-          fi
-
-      # Setup Node.js with caching for npm or yarn
+      # Setup Node.js without caching
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "20"
-          cache: ${{ env.PACKAGE_MANAGER != 'bun' && env.PACKAGE_MANAGER || '' }}
-          cache-dependency-path: ${{ env.PACKAGE_MANAGER == 'yarn' && 'yarn.lock' || 'package-lock.json' }}
 
-      # Setup Bun with manual caching
+      # Setup Bun
       - name: Setup Bun
-        if: env.PACKAGE_MANAGER == 'bun'
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
-      # Cache Bun dependencies
-      - name: Cache Bun dependencies
-        if: env.PACKAGE_MANAGER == 'bun'
-        uses: actions/cache@v3
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      # Setup Yarn if needed
-      - name: Setup Yarn
-        if: env.PACKAGE_MANAGER == 'yarn'
-        run: npm install -g yarn
-
+      # Install dependencies
       - name: Install dependencies
-        run: |
-          if [ "${{ env.PACKAGE_MANAGER }}" = "bun" ]; then
-            bun install
-          elif [ "${{ env.PACKAGE_MANAGER }}" = "yarn" ]; then
-            yarn install --frozen-lockfile
-          else
-            npm ci
-          fi
+        run: bun install
 
+      # Build Next.js app
       - name: Build Next.js app
-        run: |
-          if [ "${{ env.PACKAGE_MANAGER }}" = "bun" ]; then
-            bun run build
-          elif [ "${{ env.PACKAGE_MANAGER }}" = "yarn" ]; then
-            yarn build
-          else
-            npm run build
-          fi
+        run: bun run build
 
-      - name: Github Tag Release Version # set release version from tag name
-        id: latestTag
-        run: |-
-          echo "Tag name from GITHUB_REF_NAME: $GITHUB_REF_NAME"
-          echo "RELEASE_VERSION=release-${{ github.ref_name }}" >> $GITHUB_ENV
+      # Set release version from tag
+      - name: Set release version
+        run: echo "RELEASE_VERSION=release-$GITHUB_REF_NAME" >> $GITHUB_ENV
 
       # Authenticate to Google Cloud
       - id: "auth"
         name: "Authenticate to Google Cloud"
         uses: "google-github-actions/auth@v1"
         with:
-          credentials_json: "${{ secrets.SERVICE_ACCOUNT_KEY }}"
+          credentials_json: "${{ secrets.GCP_SA_KEY }}"
 
       # Set up Cloud SDK
       - name: "Set up Cloud SDK"
