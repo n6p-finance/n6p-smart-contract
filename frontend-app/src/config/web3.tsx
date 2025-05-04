@@ -1,7 +1,7 @@
 import { getDefaultConfig, getDefaultWallets } from '@rainbow-me/rainbowkit';
 import { QueryClient } from '@tanstack/react-query';
 import { createConfig, http } from 'wagmi';
-import { Chain, hardhat, mainnet, sepolia } from 'wagmi/chains';
+import { Chain, sepolia } from 'wagmi/chains';
 
 import { anvil } from "wagmi/chains";
 
@@ -29,7 +29,7 @@ const localAnvil: Chain = {
 export const queryClient = new QueryClient();
 
 // Define the chains we want to support
-export const chains = [sepolia, localAnvil, mainnet] as const;
+export const chains = [sepolia] as const;
 
 // Set up wallets
 export const { wallets } = getDefaultWallets({
@@ -50,8 +50,6 @@ export const config = createConfig({
   chains,
   transports: {
     [sepolia.id]: http(),
-    [mainnet.id]: http(),
-    [hardhat.id]: http('http://127.0.0.1:8545'),
   },
 });
 
