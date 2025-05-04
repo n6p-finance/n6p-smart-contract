@@ -10,7 +10,15 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:mcp": "jest src/components/mcp/__tests__"
+    "test:mcp": "jest src/components/mcp/__tests__",
+    "test:components": "jest src/components/__tests__",
+    "test:pages": "jest src/app/__tests__",
+    "test:integration": "jest src/app/__tests__/integration.test.tsx",
+    "test:all": "jest --verbose",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.4",
@@ -23,6 +31,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
