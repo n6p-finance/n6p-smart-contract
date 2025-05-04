@@ -60,7 +60,7 @@ export const CONTRACT_ADDRESSES = {
   // Sepolia Testnet addresses
   sepolia: {
     aiDecisionModule: '0x93F7d6566Aa4011aA7A0043Ddda4c6cCc3954BF7', // Deployed AIDecisionModule address
-    vault: '0x9d1f10369b2e1d70c1ce54b49ebb60b33a444a56', // Deployed Vault address with TestToken
+    vault: '0xCe20CA4FD82f03Bbbbd4c79cf8516E05F6457426', // Deployed TestVault address
     testToken: '0x47112e1874336Dae68Bd14D0c4373902db63aB6F', // Deployed TestToken address
   },
   // Local development addresses
@@ -74,7 +74,7 @@ export const CONTRACT_ADDRESSES = {
     ? '0x93F7d6566Aa4011aA7A0043Ddda4c6cCc3954BF7' // Sepolia AIDecisionModule address
     : '0x5FbDB2315678afecb367f032d93F642f64180aa3', // Local development address
   vault: process.env.NEXT_PUBLIC_USE_TESTNET === 'true'
-    ? '0x9d1f10369b2e1d70c1ce54b49ebb60b33a444a56' // Sepolia Vault address with TestToken
+    ? '0xCe20CA4FD82f03Bbbbd4c79cf8516E05F6457426' // Sepolia TestVault address
     : '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0', // Local development address
   testToken: process.env.NEXT_PUBLIC_USE_TESTNET === 'true'
     ? '0x47112e1874336Dae68Bd14D0c4373902db63aB6F' // Sepolia TestToken address
