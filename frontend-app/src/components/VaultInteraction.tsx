@@ -251,26 +251,26 @@ const VaultInteraction: React.FC = () => {
               
               <div className="mb-8">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-medium">APY History</h4>
+                  <h4 className="font-medium text-white">APY History</h4>
                   <button 
                     onClick={() => setShowAPYHistory(!showAPYHistory)}
-                    className="text-sm text-blue-600 hover:text-blue-800"
+                    className="text-sm text-blue-400 hover:text-blue-300"
                   >
                     {showAPYHistory ? 'Hide' : 'Show'} Details
                   </button>
                 </div>
                 
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 shadow-lg">
                   {/* Simple chart visualization */}
                   <div className="h-40 flex items-end space-x-2">
                     {apyHistory.map((item, index) => (
                       <div key={index} className="flex-1 flex flex-col items-center">
                         <div 
-                          className="w-full bg-blue-500 rounded-t" 
+                          className="w-full bg-blue-600 rounded-t" 
                           style={{ height: `${(item.apy / 10) * 100}%` }}
                         ></div>
                         {showAPYHistory && (
-                          <div className="text-xs mt-2 text-gray-600">{item.date}</div>
+                          <div className="text-xs mt-2 text-gray-400">{item.date}</div>
                         )}
                       </div>
                     ))}
@@ -278,18 +278,18 @@ const VaultInteraction: React.FC = () => {
                   
                   {showAPYHistory && (
                     <div className="mt-4">
-                      <table className="min-w-full divide-y divide-gray-200">
+                      <table className="min-w-full divide-y divide-gray-700">
                         <thead>
                           <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">APY</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">APY</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
+                        <tbody className="divide-y divide-gray-700">
                           {apyHistory.map((item, index) => (
                             <tr key={index}>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{item.date}</td>
-                              <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{item.apy}%</td>
+                              <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-400">{item.date}</td>
+                              <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-blue-400">{item.apy}%</td>
                             </tr>
                           ))}
                         </tbody>

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MCPDecisionCard from '@/components/mcp/MCPDecisionCard';
 import MCPVerification from '@/components/mcp/MCPVerification';
+import AIDecisionVisualization from '@/components/AIDecisionVisualization';
 import { NavbarSpacer } from '@/components/Navbar';
 
 export default function DecisionsPage() {
@@ -51,6 +52,18 @@ export default function DecisionsPage() {
         <h1 className="text-2xl font-bold text-white mb-4">AI Decision History</h1>
         <p className="text-gray-300">
           View the history of allocation decisions made by NapFi AI and understand the reasoning behind each decision.
+        </p>
+      </div>
+      
+      {/* AI Decision Visualization */}
+      <div className="mb-8">
+        <AIDecisionVisualization />
+      </div>
+      
+      <div className="mb-8">
+        <h2 className="text-xl font-bold text-white mb-4">Decision Records</h2>
+        <p className="text-gray-300">
+          Below are the cryptographically verified records of allocation decisions made by the AI.
         </p>
       </div>
 

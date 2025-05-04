@@ -63,7 +63,9 @@ export const CONTRACT_ADDRESSES = {
     vault: '0x616102e0C0af01aF67a877031a199d880178913D', // Updated TestVault address with controller support
     testToken: '0x47112e1874336Dae68Bd14D0c4373902db63aB6F', // Deployed TestToken address
     testController: '0x92FcbFaa42AD84d0EF230AA5e38eaEa4af129fc9', // Deployed TestController address
-    testStrategy: '0x377ea45291DED69A76a9959d32745af618Cc1C26', // Deployed TestStrategy address
+    testStrategy: '0x377ea45291DED69A76a9959d32745af618Cc1C26', // Deployed TestStrategy address (5% APY)
+    highYieldStrategy: '0xFA7F6451901f15bdAEF0FD72329bFD8dd352f432', // High-Yield Strategy (8% APY)
+    stableYieldStrategy: '0xD72A532f0a4AdBE46c0BC2026bA57DC977021b1B', // Stable-Yield Strategy (3% APY)
   },
   // Local development addresses
   local: {
