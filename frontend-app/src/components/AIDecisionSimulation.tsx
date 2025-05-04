@@ -283,7 +283,7 @@ const AIDecisionSimulation: React.FC<AIDecisionSimulationProps> = ({
           </div>
           <button
             onClick={toggleSimulation}
-            className={`px-4 py-2 rounded-md text-white ${isSimulating ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+            className={`px-4 py-2 rounded-md text-white font-medium ${isSimulating ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} transition-colors shadow-lg`}
           >
             {isSimulating ? 'Stop Simulation' : 'Start Simulation'}
           </button>
@@ -291,16 +291,16 @@ const AIDecisionSimulation: React.FC<AIDecisionSimulationProps> = ({
       </div>
       
       {/* Market Indicators */}
-      <div className="bg-gray-50 p-4 rounded-lg mb-6">
-        <h3 className="text-lg font-semibold mb-3 text-gray-800">Market Indicators</h3>
+      <div className="bg-gray-800 p-4 rounded-lg mb-6 shadow-inner">
+        <h3 className="text-lg font-semibold mb-3 text-gray-100">Market Indicators</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <div className="mb-4">
               <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium">Market Volatility</span>
-                <span className="text-sm font-medium">{marketIndicators.volatility}%</span>
+                <span className="text-sm font-medium text-gray-300">Market Volatility</span>
+                <span className="text-sm font-medium text-gray-300">{marketIndicators.volatility}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="w-full bg-gray-700 rounded-full h-2.5">
                 <div 
                   className={`h-2.5 rounded-full ${marketIndicators.volatility > 70 ? 'bg-red-500' : marketIndicators.volatility > 40 ? 'bg-yellow-400' : 'bg-green-500'}`} 
                   style={{ width: `${marketIndicators.volatility}%` }}
@@ -310,10 +310,10 @@ const AIDecisionSimulation: React.FC<AIDecisionSimulationProps> = ({
             
             <div className="mb-4">
               <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium">Yield Opportunity</span>
-                <span className="text-sm font-medium">{marketIndicators.opportunity}%</span>
+                <span className="text-sm font-medium text-gray-300">Yield Opportunity</span>
+                <span className="text-sm font-medium text-gray-300">{marketIndicators.opportunity}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="w-full bg-gray-700 rounded-full h-2.5">
                 <div 
                   className="bg-blue-500 h-2.5 rounded-full" 
                   style={{ width: `${marketIndicators.opportunity}%` }}
@@ -325,10 +325,10 @@ const AIDecisionSimulation: React.FC<AIDecisionSimulationProps> = ({
           <div>
             <div className="mb-4">
               <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium">Market Liquidity</span>
-                <span className="text-sm font-medium">{marketIndicators.liquidity}%</span>
+                <span className="text-sm font-medium text-gray-300">Market Liquidity</span>
+                <span className="text-sm font-medium text-gray-300">{marketIndicators.liquidity}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="w-full bg-gray-700 rounded-full h-2.5">
                 <div 
                   className="bg-purple-500 h-2.5 rounded-full" 
                   style={{ width: `${marketIndicators.liquidity}%` }}
@@ -337,7 +337,7 @@ const AIDecisionSimulation: React.FC<AIDecisionSimulationProps> = ({
             </div>
             
             <div className="flex justify-between items-center mb-1">
-              <span className="text-sm font-medium">Market Sentiment</span>
+              <span className="text-sm font-medium text-gray-300">Market Sentiment</span>
               {renderSentimentIndicator(marketIndicators.sentiment)}
             </div>
           </div>
@@ -345,13 +345,13 @@ const AIDecisionSimulation: React.FC<AIDecisionSimulationProps> = ({
       </div>
       
       {/* Current Decision */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg mb-6">
-        <h3 className="text-lg font-semibold mb-3 text-gray-800">Current AI Decision</h3>
+      <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-4 rounded-lg mb-6 shadow-lg">
+        <h3 className="text-lg font-semibold mb-3 text-gray-100">Current AI Decision</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div className="bg-white p-3 rounded shadow-sm">
-            <div className="text-sm text-gray-500 mb-1">Risk Assessment</div>
-            <div className="text-xl font-bold">{currentDecision.riskScore}/10</div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+          <div className="bg-gray-800 p-3 rounded shadow-md border border-gray-700">
+            <div className="text-sm text-gray-400 mb-1">Risk Assessment</div>
+            <div className="text-xl font-bold text-white">{currentDecision.riskScore}/10</div>
+            <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
               <div 
                 className={`h-2 rounded-full ${currentDecision.riskScore > 7 ? 'bg-red-500' : currentDecision.riskScore > 4 ? 'bg-yellow-400' : 'bg-green-500'}`} 
                 style={{ width: `${currentDecision.riskScore * 10}%` }}
@@ -359,10 +359,10 @@ const AIDecisionSimulation: React.FC<AIDecisionSimulationProps> = ({
             </div>
           </div>
           
-          <div className="bg-white p-3 rounded shadow-sm">
-            <div className="text-sm text-gray-500 mb-1">Confidence Score</div>
-            <div className="text-xl font-bold">{(currentDecision.confidenceScore * 100).toFixed(0)}%</div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+          <div className="bg-gray-800 p-3 rounded shadow-md border border-gray-700">
+            <div className="text-sm text-gray-400 mb-1">Confidence Score</div>
+            <div className="text-xl font-bold text-white">{(currentDecision.confidenceScore * 100).toFixed(0)}%</div>
+            <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
               <div 
                 className="bg-blue-500 h-2 rounded-full" 
                 style={{ width: `${currentDecision.confidenceScore * 100}%` }}
@@ -370,39 +370,39 @@ const AIDecisionSimulation: React.FC<AIDecisionSimulationProps> = ({
             </div>
           </div>
           
-          <div className="bg-white p-3 rounded shadow-sm">
-            <div className="text-sm text-gray-500 mb-1">Market Sentiment</div>
-            <div className="text-xl font-bold">{renderSentimentIndicator(currentDecision.marketSentiment)}</div>
-            <div className="text-xs text-gray-500 mt-2">
+          <div className="bg-gray-800 p-3 rounded shadow-md border border-gray-700">
+            <div className="text-sm text-gray-400 mb-1">Market Sentiment</div>
+            <div className="text-xl font-bold text-white">{renderSentimentIndicator(currentDecision.marketSentiment)}</div>
+            <div className="text-xs text-gray-400 mt-2">
               Updated {new Date(currentDecision.timestamp).toLocaleTimeString()}
             </div>
           </div>
         </div>
         
-        <div className="bg-white p-4 rounded shadow-sm mb-4">
-          <div className="text-sm text-gray-500 mb-2">AI Reasoning</div>
-          <p className="text-gray-700">{currentDecision.reasoning}</p>
+        <div className="bg-gray-800 p-4 rounded shadow-md mb-4 border border-gray-700">
+          <div className="text-sm text-gray-400 mb-2">AI Reasoning</div>
+          <p className="text-gray-300">{currentDecision.reasoning}</p>
         </div>
         
-        <div className="bg-white p-4 rounded shadow-sm">
-          <div className="text-sm text-gray-500 mb-2">Recommended Strategy Allocation</div>
+        <div className="bg-gray-800 p-4 rounded shadow-md border border-gray-700">
+          <div className="text-sm text-gray-400 mb-2">Recommended Strategy Allocation</div>
           <div className="space-y-3">
             {strategies.map(strategy => (
               <div key={strategy.id}>
                 <div className="flex justify-between mb-1">
-                  <span className="font-medium">{strategy.name}</span>
-                  <span className={`text-sm ${currentDecision.recommendedStrategies.includes(strategy.id) ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                  <span className="font-medium text-gray-200">{strategy.name}</span>
+                  <span className={`text-sm ${currentDecision.recommendedStrategies.includes(strategy.id) ? 'text-green-400 font-medium' : 'text-gray-400'}`}>
                     {strategy.allocation}%
                     {currentDecision.recommendedStrategies.includes(strategy.id) && ' (Recommended)'}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-gray-700 rounded-full h-2">
                   <div 
-                    className={`h-2 rounded-full ${currentDecision.recommendedStrategies.includes(strategy.id) ? 'bg-green-500' : 'bg-gray-400'}`} 
+                    className={`h-2 rounded-full ${currentDecision.recommendedStrategies.includes(strategy.id) ? 'bg-green-500' : 'bg-gray-600'}`} 
                     style={{ width: `${strategy.allocation}%` }}
                   ></div>
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
                   <span>APY: {strategy.apy}%</span>
                   <span>Risk: {strategy.risk}/10</span>
                 </div>
@@ -413,33 +413,33 @@ const AIDecisionSimulation: React.FC<AIDecisionSimulationProps> = ({
       </div>
       
       {/* Market Data */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <h3 className="text-lg font-semibold p-4 border-b text-gray-800">Market Data</h3>
+      <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-lg">
+        <h3 className="text-lg font-semibold p-4 border-b border-gray-700 text-gray-100">Market Data</h3>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-700">
+            <thead className="bg-gray-800">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asset</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">24h Change</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volatility</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volume</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Yield</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Asset</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Price</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">24h Change</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Volatility</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Volume</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Yield</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-gray-900 divide-y divide-gray-700">
               {marketData.map((asset) => (
                 <tr key={asset.assetName}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">{asset.assetName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${asset.price.toFixed(2)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">{asset.assetName}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${asset.price.toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className={asset.change24h >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    <span className={asset.change24h >= 0 ? 'text-green-400' : 'text-red-400'}>
                       {asset.change24h >= 0 ? '+' : ''}{asset.change24h.toFixed(2)}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{(asset.volatility * 100).toFixed(1)}%</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatNumber(asset.volume)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{asset.yield.toFixed(1)}%</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{(asset.volatility * 100).toFixed(1)}%</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{formatNumber(asset.volume)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{asset.yield.toFixed(1)}%</td>
                 </tr>
               ))}
             </tbody>

@@ -45,7 +45,7 @@ const ConnectButton: React.FC = () => {
                   <button
                     onClick={openConnectModal}
                     type="button"
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-colors"
+                    className="bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-colors shadow-lg border border-blue-600"
                   >
                     Connect Wallet
                   </button>
@@ -57,7 +57,7 @@ const ConnectButton: React.FC = () => {
                   <button
                     onClick={openChainModal}
                     type="button"
-                    className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-colors"
+                    className="bg-red-700 hover:bg-red-800 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-colors shadow-lg border border-red-600"
                   >
                     Wrong network
                   </button>
@@ -69,7 +69,7 @@ const ConnectButton: React.FC = () => {
                   <button
                     onClick={openChainModal}
                     type="button"
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg flex items-center transition-colors"
+                    className="bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium py-2 px-3 rounded-lg flex items-center transition-colors border border-gray-600"
                   >
                     {chain.hasIcon && (
                       <div
@@ -97,7 +97,7 @@ const ConnectButton: React.FC = () => {
                   <button
                     onClick={openAccountModal}
                     type="button"
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-colors"
+                    className="bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-colors shadow-lg border border-blue-600"
                   >
                     <span className="font-mono">
                       {account.displayName}

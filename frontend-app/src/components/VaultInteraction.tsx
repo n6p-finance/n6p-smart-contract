@@ -182,15 +182,15 @@ const VaultInteraction: React.FC = () => {
   };
   
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 max-w-6xl mx-auto">
+    <div className="rounded-xl shadow-md p-6 mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">NapFi AI Vault</h2>
+        <h2 className="text-2xl font-bold text-white">NapFi AI Vault</h2>
         <div className="flex space-x-2">
-          <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
-            <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+          <div className="bg-green-900 text-green-300 px-3 py-1 rounded-full text-sm font-medium flex items-center border border-green-700">
+            <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
             Active
           </div>
-          <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+          <div className="bg-blue-900 text-blue-300 px-3 py-1 rounded-full text-sm font-medium border border-blue-700">
             APY: {calculateAPY()}%
           </div>
         </div>
@@ -198,23 +198,23 @@ const VaultInteraction: React.FC = () => {
       
       {/* Main content with tabs */}
       <div className="mb-8">
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-700">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('deposit')}
-              className={`${activeTab === 'deposit' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              className={`${activeTab === 'deposit' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Deposit
             </button>
             <button
               onClick={() => setActiveTab('withdraw')}
-              className={`${activeTab === 'withdraw' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              className={`${activeTab === 'withdraw' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Withdraw
             </button>
             <button
               onClick={() => setActiveTab('stats')}
-              className={`${activeTab === 'stats' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              className={`${activeTab === 'stats' ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Vault Stats
             </button>
@@ -226,26 +226,26 @@ const VaultInteraction: React.FC = () => {
         {/* Left panel - Form */}
         <div className="lg:col-span-2">
           {activeTab === 'stats' ? (
-            <div className="bg-white rounded-lg">
-              <h3 className="text-lg font-semibold mb-4">Vault Performance</h3>
+            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+              <h3 className="text-lg font-semibold mb-4 text-white">Vault Performance</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm text-gray-500 mb-1">Total Value Locked</h4>
-                  <p className="text-2xl font-bold">{formatLargeNumber(tvlHistory[tvlHistory.length - 1].value)}</p>
-                  <p className="text-sm text-green-600 mt-1">+{((tvlHistory[tvlHistory.length - 1].value - tvlHistory[tvlHistory.length - 2].value) / tvlHistory[tvlHistory.length - 2].value * 100).toFixed(1)}% from last week</p>
+                <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                  <h4 className="text-sm text-gray-400 mb-1">Total Value Locked</h4>
+                  <p className="text-2xl font-bold text-white">{formatLargeNumber(tvlHistory[tvlHistory.length - 1].value)}</p>
+                  <p className="text-sm text-green-400 mt-1">+{((tvlHistory[tvlHistory.length - 1].value - tvlHistory[tvlHistory.length - 2].value) / tvlHistory[tvlHistory.length - 2].value * 100).toFixed(1)}% from last week</p>
                 </div>
                 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm text-gray-500 mb-1">Current APY</h4>
-                  <p className="text-2xl font-bold">{calculateAPY()}%</p>
-                  <p className="text-sm text-green-600 mt-1">+{(apyHistory[apyHistory.length - 1].apy - apyHistory[apyHistory.length - 2].apy).toFixed(1)}% from last week</p>
+                <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                  <h4 className="text-sm text-gray-400 mb-1">Current APY</h4>
+                  <p className="text-2xl font-bold text-white">{calculateAPY()}%</p>
+                  <p className="text-sm text-green-400 mt-1">+{(apyHistory[apyHistory.length - 1].apy - apyHistory[apyHistory.length - 2].apy).toFixed(1)}% from last week</p>
                 </div>
                 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm text-gray-500 mb-1">Price Per Share</h4>
-                  <p className="text-2xl font-bold">{pricePerFullShare ? formatUnits(pricePerFullShare as bigint, tokenDecimals) : '0'}</p>
-                  <p className="text-sm text-blue-600 mt-1">Increases with yield</p>
+                <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                  <h4 className="text-sm text-gray-400 mb-1">Price Per Share</h4>
+                  <p className="text-2xl font-bold text-white">{pricePerFullShare ? formatUnits(pricePerFullShare as bigint, tokenDecimals) : '0'}</p>
+                  <p className="text-sm text-blue-400 mt-1">Increases with yield</p>
                 </div>
               </div>
               
@@ -300,13 +300,13 @@ const VaultInteraction: React.FC = () => {
               </div>
               
               <div>
-                <h4 className="font-medium mb-4">Vault Strategy</h4>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700 mb-3">
+                <h4 className="font-medium mb-4 text-white">Vault Strategy</h4>
+                <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                  <p className="text-gray-300 mb-3">
                     This vault uses NapFi AI to optimize yield by dynamically allocating funds across multiple strategies based on market conditions and risk parameters.
                   </p>
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                  <div className="flex items-center space-x-2 text-sm text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
                     <span>Managed by NapFi AI Decision Module</span>
@@ -315,8 +315,8 @@ const VaultInteraction: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg">
-              <h3 className="text-lg font-semibold mb-4">
+            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+              <h3 className="text-lg font-semibold mb-4 text-white">
                 {activeTab === 'deposit' ? 'Deposit to Vault' : 'Withdraw from Vault'}
               </h3>
               
@@ -332,9 +332,9 @@ const VaultInteraction: React.FC = () => {
               )}
               
               {/* Form */}
-              <form onSubmit={handleSubmit} className="bg-gray-50 p-6 rounded-lg">
+              <form onSubmit={handleSubmit} className="bg-gray-900 p-6 rounded-lg border border-gray-700">
                 <div className="mb-6">
-                  <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="amount" className="block text-sm font-medium text-gray-300 mb-2">
                     Amount ({tokenSymbol})
                   </label>
                   <div className="relative rounded-md shadow-sm">
@@ -346,13 +346,13 @@ const VaultInteraction: React.FC = () => {
                       placeholder="0.0"
                       step="0.01"
                       min="0"
-                      className="block w-full rounded-md border-gray-300 pr-20 focus:border-blue-500 focus:ring-blue-500 py-3 px-4"
+                      className="block w-full rounded-md bg-gray-800 border-gray-700 text-white pr-20 focus:border-blue-500 focus:ring-blue-500 py-3 px-4"
                       disabled={!isConnected || isPending || isWaiting}
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center">
                       <button
                         type="button"
-                        className="inline-flex items-center rounded-r-md border border-transparent bg-blue-100 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none"
+                        className="inline-flex items-center rounded-r-md border border-gray-600 bg-gray-700 px-4 py-2 text-sm font-medium text-blue-300 hover:bg-gray-600 focus:outline-none transition-colors"
                         onClick={() => {
                           // Set max amount based on balance
                           if (activeTab === 'deposit' && userTokenBalance) {
@@ -368,7 +368,7 @@ const VaultInteraction: React.FC = () => {
                   </div>
                   
                   {/* Balance info */}
-                  <div className="mt-2 flex justify-between text-sm text-gray-500">
+                  <div className="mt-2 flex justify-between text-sm text-gray-400">
                     <span>Available: </span>
                     <span>
                       {activeTab === 'deposit' && userTokenBalance
@@ -383,7 +383,7 @@ const VaultInteraction: React.FC = () => {
                 <div className="flex flex-col space-y-4">
                   <button
                     type="submit"
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-md transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex justify-center items-center"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-md transition-colors disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed flex justify-center items-center shadow-lg"
                     disabled={!isConnected || isPending || isWaiting || !amount}
                   >
                     {isPending || isWaiting ? (
@@ -448,12 +448,12 @@ const VaultInteraction: React.FC = () => {
               
               {/* Error message */}
               {error && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                <div className="mt-4 p-4 bg-red-900 border border-red-700 rounded-md">
                   <div className="flex">
                     <svg className="h-5 w-5 text-red-400 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
-                    <p className="text-red-800">{error}</p>
+                    <p className="text-red-300">{error}</p>
                   </div>
                 </div>
               )}
@@ -463,95 +463,95 @@ const VaultInteraction: React.FC = () => {
         
         {/* Right panel - Portfolio & Info */}
         <div>
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 mb-6">
-            <h3 className="text-lg font-semibold mb-4">Your Portfolio</h3>
+          <div className="bg-gradient-to-br from-blue-900 to-indigo-900 rounded-lg p-6 mb-6 border border-blue-700 shadow-lg">
+            <h3 className="text-lg font-semibold mb-4 text-white">Your Portfolio</h3>
             
             <div className="mb-4">
-              <div className="flex justify-between text-sm text-gray-600 mb-1">
+              <div className="flex justify-between text-sm text-gray-300 mb-1">
                 <span>Your Shares:</span>
                 <span>{formattedShares}</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-700 rounded-full h-2">
                 <div 
-                  className="bg-blue-600 h-2 rounded-full" 
+                  className="bg-blue-500 h-2 rounded-full" 
                   style={{ width: `${parseFloat(formattedShares) > 0 ? '100' : '0'}%` }}
                 ></div>
               </div>
             </div>
             
             <div className="mb-6">
-              <div className="flex justify-between text-sm text-gray-600 mb-1">
+              <div className="flex justify-between text-sm text-gray-300 mb-1">
                 <span>Estimated Value:</span>
                 <span>{estimatedValue} {tokenSymbol}</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-700 rounded-full h-2">
                 <div 
-                  className="bg-green-600 h-2 rounded-full" 
+                  className="bg-green-500 h-2 rounded-full" 
                   style={{ width: `${parseFloat(estimatedValue) > 0 ? '100' : '0'}%` }}
                 ></div>
               </div>
             </div>
             
-            <div className="bg-white rounded-md p-4">
+            <div className="bg-gray-800 rounded-md p-4 border border-gray-700">
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Current APY:</span>
-                <span className="text-lg font-bold text-green-600">{calculateAPY()}%</span>
+                <span className="text-gray-300">Current APY:</span>
+                <span className="text-lg font-bold text-green-400">{calculateAPY()}%</span>
               </div>
-              <div className="mt-2 text-xs text-gray-500">
+              <div className="mt-2 text-xs text-gray-400">
                 APY is variable and based on market conditions
               </div>
             </div>
           </div>
           
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">How It Works</h3>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 shadow-lg">
+            <h3 className="text-lg font-semibold mb-4 text-white">How It Works</h3>
             
             <div className="space-y-4">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-900 text-blue-300 border border-blue-700">
                     1
                   </div>
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-sm font-medium text-gray-900">Deposit</h4>
-                  <p className="text-sm text-gray-500">Deposit your tokens into the vault and receive shares</p>
+                  <h4 className="text-sm font-medium text-gray-200">Deposit</h4>
+                  <p className="text-sm text-gray-400">Deposit your tokens into the vault and receive shares</p>
                 </div>
               </div>
               
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-900 text-blue-300 border border-blue-700">
                     2
                   </div>
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-sm font-medium text-gray-900">AI Optimization</h4>
-                  <p className="text-sm text-gray-500">NapFi AI allocates funds to optimal yield strategies</p>
+                  <h4 className="text-sm font-medium text-gray-200">AI Optimization</h4>
+                  <p className="text-sm text-gray-400">NapFi AI allocates funds to optimal yield strategies</p>
                 </div>
               </div>
               
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-900 text-blue-300 border border-blue-700">
                     3
                   </div>
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-sm font-medium text-gray-900">Earn Yield</h4>
-                  <p className="text-sm text-gray-500">Your share value increases as the vault generates yield</p>
+                  <h4 className="text-sm font-medium text-gray-200">Earn Yield</h4>
+                  <p className="text-sm text-gray-400">Your share value increases as the vault generates yield</p>
                 </div>
               </div>
               
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-900 text-blue-300 border border-blue-700">
                     4
                   </div>
                 </div>
                 <div className="ml-4">
-                  <h4 className="text-sm font-medium text-gray-900">Withdraw</h4>
-                  <p className="text-sm text-gray-500">Withdraw your tokens plus yield at any time</p>
+                  <h4 className="text-sm font-medium text-gray-200">Withdraw</h4>
+                  <p className="text-sm text-gray-400">Withdraw your tokens plus yield at any time</p>
                 </div>
               </div>
             </div>

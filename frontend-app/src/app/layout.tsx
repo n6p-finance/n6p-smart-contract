@@ -5,7 +5,7 @@ import "./globals.css";
 import Web3Provider from "@/components/providers/Web3Provider";
 import Navbar from "@/components/Navbar";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], weight:["300", "400", "500", "600", "700"] });
 
 export const metadata: Metadata = {
   title: "NapFi AI - DeFi Yield Optimizer",
@@ -18,10 +18,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body className={inter.className}>
         <Web3Provider>
-          <div className="min-h-screen bg-gray-50">
+          <div className="min-h-screen bg-gray-900 text-gray-100">
             <Navbar />
             <main>{children}</main>
           </div>

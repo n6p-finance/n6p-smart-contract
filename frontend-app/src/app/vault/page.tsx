@@ -4,25 +4,28 @@ import React from 'react';
 import VaultInteraction from '@/components/VaultInteraction';
 import TokenDebugger from '@/components/TokenDebugger';
 import VaultDebugger from '@/components/VaultDebugger';
+import { NavbarSpacer } from '@/components/Navbar';
 
 export default function VaultPage() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Vault Operations</h1>
-        <p className="text-gray-600">
-          Deposit your funds into the NapFi AI vault to start earning optimized yields, or withdraw your funds at any time.
+    <>
+      <NavbarSpacer />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white mb-4">Vault Operations</h1>
+          <p className="text-gray-300">
+            Deposit your funds into the NapFi AI vault to start earning optimized yields, or withdraw your funds at any time.
         </p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="rounded-xl bg-gray-800 shadow-lg border border-gray-700 gap-8">
         <div className="space-y-6">
-          <TokenDebugger />
-          <VaultDebugger />
+          {/* <TokenDebugger /> */}
+          {/* <VaultDebugger /> */}
           <VaultInteraction />
         </div>
         
-        <div className="bg-white rounded-xl shadow-md p-6">
+        {/* <div className="bg-white rounded-xl shadow-md p-6">
           <h2 className="text-xl font-semibold mb-6 text-gray-800">How It Works</h2>
           
           <div className="space-y-4">
@@ -65,8 +68,9 @@ export default function VaultPage() {
               This is a local development environment connected to your Anvil instance. In a production environment, you would be interacting with contracts deployed on Ethereum mainnet or a testnet.
             </p>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
+    </>
   );
 }

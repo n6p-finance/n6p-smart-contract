@@ -79,13 +79,13 @@ const MCPDecisionCard: React.FC<MCPDecisionCardProps> = ({
   // Render loading state
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all hover:shadow-lg">
-        <div className="bg-blue-600 text-white px-5 py-4 flex justify-between items-center">
+      <div className="bg-gray-800 rounded-xl shadow-md overflow-hidden transition-all hover:shadow-lg border border-gray-700">
+        <div className="bg-blue-800 text-white px-5 py-4 flex justify-between items-center">
           <h3 className="text-lg font-semibold m-0">AI Decision Reasoning</h3>
         </div>
         <div className="p-5 flex justify-center items-center min-h-[200px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="ml-3">Loading decision data...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+          <p className="ml-3 text-gray-300">Loading decision data...</p>
         </div>
       </div>
     );
@@ -94,12 +94,13 @@ const MCPDecisionCard: React.FC<MCPDecisionCardProps> = ({
   // Render error state
   if (isError && !decision) {
     return (
-      <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all hover:shadow-lg border border-red-200">
-        <div className="bg-red-600 text-white px-5 py-4 flex justify-between items-center">
+      <div className="bg-gray-800 rounded-xl shadow-md overflow-hidden transition-all hover:shadow-lg border border-red-700">
+        <div className="bg-red-800 text-white px-5 py-4 flex justify-between items-center">
           <h3 className="text-lg font-semibold m-0">AI Decision Reasoning</h3>
         </div>
         <div className="p-5">
-          <p className="text-red-600">Error: {error?.message || 'Failed to load decision data'}</p>
+          <p className="text-red-400">Error loading decision data</p>
+          <p className="text-gray-400 text-sm mt-2">{(error as Error)?.message || 'Unknown error'}</p>
         </div>
       </div>
     );
@@ -107,32 +108,32 @@ const MCPDecisionCard: React.FC<MCPDecisionCardProps> = ({
 
   // Render decision data
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden transition-all hover:shadow-lg hover:translate-y-[-2px]">
-      <div className="bg-blue-600 text-white px-5 py-4 flex justify-between items-center">
+    <div className="bg-gray-800 rounded-xl shadow-md overflow-hidden transition-all hover:shadow-lg hover:translate-y-[-2px] border border-gray-700">
+      <div className="bg-blue-800 text-white px-5 py-4 flex justify-between items-center">
         <h3 className="text-lg font-semibold m-0">AI Decision Reasoning</h3>
         <span className="text-sm opacity-80">{decision?.timestamp}</span>
       </div>
       <div className="p-5">
         <div className="mb-5">
-          <h4 className="text-base font-semibold mb-2 text-gray-800">Why this allocation?</h4>
-          <p className="text-gray-600 leading-relaxed">{decision?.reasoning || 'No reasoning provided'}</p>
+          <h4 className="text-base font-semibold mb-2 text-gray-200">Why this allocation?</h4>
+          <p className="text-gray-300 leading-relaxed">{decision?.reasoning || 'No reasoning provided'}</p>
         </div>
         <div className="mb-5">
-          <h4 className="text-base font-semibold mb-2 text-gray-800">Current Allocation</h4>
+          <h4 className="text-base font-semibold mb-2 text-gray-200">Current Allocation</h4>
           <ul className="list-none p-0">
             {decision?.strategies.map((strategy, index) => (
-              <li key={strategy} className="flex justify-between py-2 border-b border-gray-100">
-                <span className="font-mono text-gray-500">{`${strategy.slice(0, 6)}...${strategy.slice(-4)}`}</span>
-                <span className="font-semibold text-blue-600">{decision.allocations[index]}</span>
+              <li key={strategy} className="flex justify-between py-2 border-b border-gray-700">
+                <span className="font-mono text-gray-400">{`${strategy.slice(0, 6)}...${strategy.slice(-4)}`}</span>
+                <span className="font-semibold text-blue-400">{decision.allocations[index]}</span>
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <h4 className="text-base font-semibold mb-2 text-gray-800">Verification</h4>
-          <p className="text-sm text-gray-500">Decision ID: {decision?.id}</p>
-          <p className="text-sm text-gray-500 mb-3">Signature: {decision?.signature}</p>
-          <a href={`/verify?id=${decision?.id}&signature=${decision?.signature}`} className="inline-block bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded transition-colors">
+          <h4 className="text-base font-semibold mb-2 text-gray-200">Verification</h4>
+          <p className="text-sm text-gray-400">Decision ID: {decision?.id}</p>
+          <p className="text-sm text-gray-400 mb-3">Signature: {decision?.signature}</p>
+          <a href={`/verify?id=${decision?.id}&signature=${decision?.signature}`} className="inline-block bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-4 rounded transition-colors border border-blue-600 shadow-lg">
             Verify Decision
           </a>
         </div>

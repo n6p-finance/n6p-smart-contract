@@ -146,29 +146,29 @@ const TokenApproval: React.FC<TokenApprovalProps> = ({
   const formattedBalance = tokenBalance ? formatEther(tokenBalance as bigint) : '0';
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-      <h2 className="text-xl font-semibold mb-4 text-gray-800">
+    <div className="p-4 border border-gray-700 rounded-lg bg-gray-800">
+      <h2 className="text-lg font-semibold mb-4 text-white">
         Approve Token Spending
       </h2>
       
-      <div className="bg-yellow-50 p-4 rounded-md mb-4 border border-yellow-200">
-        <p className="text-sm text-yellow-800">
+      <div className="bg-yellow-900 p-4 rounded-md mb-4 border border-yellow-700">
+        <p className="text-sm text-yellow-300">
           <strong>Important:</strong> Before depositing, you need to approve the Vault contract to spend your {typeof tokenSymbol === 'string' ? tokenSymbol : 'tokens'}.
         </p>
       </div>
 
       {/* Balance display */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+      <div className="bg-gray-900 rounded-lg p-4 mb-4 border border-gray-700">
         <div className="flex justify-between">
-          <span className="text-gray-600">Your {typeof tokenSymbol === 'string' ? tokenSymbol : 'Token'} Balance:</span>
-          <span className="font-semibold">{formattedBalance}</span>
+          <span className="text-gray-300">Your {typeof tokenSymbol === 'string' ? tokenSymbol : 'Token'} Balance:</span>
+          <span className="font-semibold text-white">{formattedBalance}</span>
         </div>
       </div>
 
       {/* Form */}
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="amount" className="block text-sm font-medium text-gray-300 mb-1">
             Amount to Approve
           </label>
           <div className="relative">
@@ -180,12 +180,12 @@ const TokenApproval: React.FC<TokenApprovalProps> = ({
               placeholder="0.0"
               step="0.01"
               min="0"
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3"
+              className="block w-full rounded-md bg-gray-800 border-gray-700 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3"
               disabled={!isConnected || isPending}
             />
             <button
               type="button"
-              className="absolute right-2 top-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded"
+              className="absolute right-2 top-2 text-xs bg-gray-700 text-blue-300 px-2 py-1 rounded border border-gray-600 hover:bg-gray-600 transition-colors"
               onClick={() => setAmount('1000')}
             >
               MAX
@@ -195,7 +195,7 @@ const TokenApproval: React.FC<TokenApprovalProps> = ({
 
         <button
           type="submit"
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded transition-colors disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed shadow-lg"
           disabled={!isConnected || isPending || !amount}
         >
           {isPending

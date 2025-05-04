@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MCPDecisionCard from '@/components/mcp/MCPDecisionCard';
 import MCPVerification from '@/components/mcp/MCPVerification';
+import { NavbarSpacer } from '@/components/Navbar';
 
 export default function DecisionsPage() {
   const searchParams = useSearchParams();
@@ -43,37 +44,39 @@ export default function DecisionsPage() {
   }, [searchParams]);
 
   return (
+    <>
+    <NavbarSpacer />
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">AI Decision History</h1>
-        <p className="text-gray-600">
+        <h1 className="text-2xl font-bold text-white mb-4">AI Decision History</h1>
+        <p className="text-gray-300">
           View the history of allocation decisions made by NapFi AI and understand the reasoning behind each decision.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            <div className="bg-blue-600 text-white px-5 py-4">
+          <div className="bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-700">
+            <div className="bg-blue-800 text-white px-5 py-4">
               <h3 className="text-lg font-semibold">Decision History</h3>
             </div>
             <div className="p-0">
-              <ul className="divide-y divide-gray-200">
+              <ul className="divide-y divide-gray-700">
                 {decisions.map((decision) => (
                   <li key={decision.id} className="cursor-pointer">
                     <button
                       className={`w-full text-left py-4 px-5 transition-colors ${
                         selectedDecision === decision.id
-                          ? 'bg-blue-50'
-                          : 'hover:bg-gray-50'
+                          ? 'bg-gray-700'
+                          : 'hover:bg-gray-700'
                       }`}
                       onClick={() => setSelectedDecision(decision.id)}
                     >
-                      <span className="text-sm text-gray-500 block">{decision.date}</span>
+                      <span className="text-sm text-gray-400 block">{decision.date}</span>
                       <span className={`${
                         selectedDecision === decision.id
-                          ? 'text-blue-700 font-medium'
-                          : 'text-gray-800'
+                          ? 'text-blue-400 font-medium'
+                          : 'text-gray-200'
                       }`}>
                         {decision.title}
                       </span>
@@ -102,5 +105,6 @@ export default function DecisionsPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

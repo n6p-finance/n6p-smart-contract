@@ -19,7 +19,7 @@ const Tooltip = ({ text, children }: { text: string; children: React.ReactNode }
         className="inline-flex items-center"
       >
         {children}
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
@@ -73,16 +73,16 @@ const APYChart = ({ apy }: { apy: number }) => {
   return (
     <div className="mt-4">
       <div className="flex justify-between mb-1">
-        <span className="text-sm font-medium">APY Performance</span>
-        <span className="text-sm font-medium">{apy}%</span>
+        <span className="text-sm font-medium text-gray-300">APY Performance</span>
+        <span className="text-sm font-medium text-gray-300">{apy}%</span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2.5">
+      <div className="w-full bg-gray-700 rounded-full h-2.5">
         <div 
           className="bg-blue-600 h-2.5 rounded-full" 
           style={{ width: `${width}%` }}
         ></div>
       </div>
-      <div className="flex justify-between text-xs text-gray-500 mt-1">
+      <div className="flex justify-between text-xs text-gray-400 mt-1">
         <span>0%</span>
         <span>5%</span>
         <span>10%</span>
@@ -103,20 +103,20 @@ const PortfolioValue = ({ vaultBalance, strategyBalance }: { vaultBalance: strin
   
   return (
     <div className="mt-6">
-      <h3 className="text-lg font-semibold mb-2">Portfolio Allocation</h3>
-      <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
+      <h3 className="text-lg font-semibold mb-2 text-white">Portfolio Allocation</h3>
+      <div className="w-full bg-gray-700 rounded-full h-4 mb-2">
         <div 
-          className="bg-blue-500 h-4 rounded-l-full" 
+          className="bg-blue-600 h-4 rounded-l-full" 
           style={{ width: `${vaultPercentage}%` }}
         ></div>
       </div>
-      <div className="flex justify-between text-sm">
+      <div className="flex justify-between text-sm text-gray-300">
         <div className="flex items-center">
-          <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+          <div className="w-3 h-3 rounded-full bg-blue-600 mr-2"></div>
           <span>Vault: {vaultValue.toFixed(2)} TEST ({vaultPercentage.toFixed(0)}%)</span>
         </div>
         <div className="flex items-center">
-          <div className="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
+          <div className="w-3 h-3 rounded-full bg-purple-600 mr-2"></div>
           <span>Strategy: {strategyValue.toFixed(2)} TEST ({strategyPercentage.toFixed(0)}%)</span>
         </div>
       </div>
@@ -334,36 +334,36 @@ export default function ControllerInteraction() {
   };
   
   return (
-    <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+    <div className="bg-gray-800 shadow-lg rounded-lg p-6 mb-6 border border-gray-700">
       {/* Header with title and description */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">NapFi AI Controller</h2>
-        <p className="text-gray-600">Interact with the NapFi AI yield optimization system</p>
+        <h2 className="text-2xl font-bold mb-2 text-white">NapFi AI Controller</h2>
+        <p className="text-gray-300">Interact with the NapFi AI yield optimization system</p>
       </div>
       
       {/* Portfolio Overview */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg mb-6">
-        <h3 className="text-xl font-semibold mb-4">Portfolio Overview</h3>
+      <div className="bg-gradient-to-r from-gray-900 to-blue-900 p-6 rounded-lg mb-6 border border-gray-700">
+        <h3 className="text-xl font-semibold mb-4 text-white">Portfolio Overview</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <h4 className="text-sm font-medium text-gray-500 mb-1">Total Value</h4>
-            <p className="text-2xl font-bold">
+          <div className="bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-700">
+            <h4 className="text-sm font-medium text-gray-400 mb-1">Total Value</h4>
+            <p className="text-2xl font-bold text-white">
               {(parseFloat(controllerBalance) + parseFloat(strategyBalance) + parseFloat(vaultBalance)).toFixed(2)} TEST
             </p>
           </div>
           
-          <div className="bg-white p-4 rounded-lg shadow-sm">
+          <div className="bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-700">
             <Tooltip text="Annual Percentage Yield - The estimated yearly return on your investment">
-              <h4 className="text-sm font-medium text-gray-500 mb-1">Current APY</h4>
+              <h4 className="text-sm font-medium text-gray-400 mb-1">Current APY</h4>
             </Tooltip>
-            <p className="text-2xl font-bold text-green-600">{strategyAPY}%</p>
+            <p className="text-2xl font-bold text-green-400">{strategyAPY}%</p>
             <APYChart apy={parseFloat(strategyAPY)} />
           </div>
           
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <h4 className="text-sm font-medium text-gray-500 mb-1">Active Strategies</h4>
-            <p className="text-2xl font-bold">{strategyCount}</p>
+          <div className="bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-700">
+            <h4 className="text-sm font-medium text-gray-400 mb-1">Active Strategies</h4>
+            <p className="text-2xl font-bold text-white">{strategyCount}</p>
           </div>
         </div>
         
@@ -372,66 +372,66 @@ export default function ControllerInteraction() {
       </div>
       
       {/* AI Decision Visualization */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+      <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6 shadow-lg">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold">AI Decision Module</h3>
-          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">Active</span>
+          <h3 className="text-xl font-semibold text-white">AI Decision Module</h3>
+          <span className="px-2 py-1 bg-green-900 text-green-300 text-xs font-medium rounded border border-green-700">Active</span>
         </div>
         
         <div className="mb-4">
           <div className="flex justify-between mb-1">
-            <span className="text-sm font-medium">Market Volatility Assessment</span>
-            <span className="text-sm font-medium">Medium</span>
+            <span className="text-sm font-medium text-gray-300">Market Volatility Assessment</span>
+            <span className="text-sm font-medium text-gray-300">Medium</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: '60%' }}></div>
+          <div className="w-full bg-gray-700 rounded-full h-2.5">
+            <div className="bg-yellow-500 h-2.5 rounded-full" style={{ width: '60%' }}></div>
           </div>
         </div>
         
         <div className="mb-4">
           <div className="flex justify-between mb-1">
-            <span className="text-sm font-medium">Risk Tolerance</span>
-            <span className="text-sm font-medium">Balanced</span>
+            <span className="text-sm font-medium text-gray-300">Risk Tolerance</span>
+            <span className="text-sm font-medium text-gray-300">Balanced</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div className="w-full bg-gray-700 rounded-full h-2.5">
             <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: '50%' }}></div>
           </div>
         </div>
         
         <div className="mb-4">
           <div className="flex justify-between mb-1">
-            <span className="text-sm font-medium">Yield Opportunity</span>
-            <span className="text-sm font-medium">High</span>
+            <span className="text-sm font-medium text-gray-300">Yield Opportunity</span>
+            <span className="text-sm font-medium text-gray-300">High</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div className="w-full bg-gray-700 rounded-full h-2.5">
             <div className="bg-green-500 h-2.5 rounded-full" style={{ width: '80%' }}></div>
           </div>
         </div>
         
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-medium mb-2">Latest AI Recommendation</h4>
-          <p className="text-gray-700">Based on current market conditions, the AI recommends maintaining the current allocation with a slight increase in exposure to higher yield opportunities.</p>
+        <div className="p-4 bg-gray-900 rounded-lg border border-gray-700">
+          <h4 className="font-medium mb-2 text-white">Latest AI Recommendation</h4>
+          <p className="text-gray-300">Based on current market conditions, the AI recommends maintaining the current allocation with a slight increase in exposure to higher yield opportunities.</p>
         </div>
       </div>
       
       {/* Action Tabs */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-6">
-        <div className="flex border-b">
+      <div className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden mb-6 shadow-lg">
+        <div className="flex border-b border-gray-700">
           <button
             onClick={() => handleTabChange('deposit')}
-            className={`flex-1 py-3 px-4 text-center font-medium ${activeTab === 'deposit' ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 py-3 px-4 text-center font-medium ${activeTab === 'deposit' ? 'bg-blue-900 text-blue-300 border-b-2 border-blue-500' : 'text-gray-300 hover:text-gray-100'}`}
           >
             Deposit
           </button>
           <button
             onClick={() => handleTabChange('yield')}
-            className={`flex-1 py-3 px-4 text-center font-medium ${activeTab === 'yield' ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 py-3 px-4 text-center font-medium ${activeTab === 'yield' ? 'bg-blue-900 text-blue-300 border-b-2 border-blue-500' : 'text-gray-300 hover:text-gray-100'}`}
           >
             Generate Yield
           </button>
           <button
             onClick={() => handleTabChange('withdraw')}
-            className={`flex-1 py-3 px-4 text-center font-medium ${activeTab === 'withdraw' ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 py-3 px-4 text-center font-medium ${activeTab === 'withdraw' ? 'bg-blue-900 text-blue-300 border-b-2 border-blue-500' : 'text-gray-300 hover:text-gray-100'}`}
           >
             Withdraw
           </button>
@@ -440,25 +440,25 @@ export default function ControllerInteraction() {
         <div className="p-6">
           {activeTab === 'deposit' && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">Deposit Funds</h3>
+              <h3 className="text-lg font-semibold mb-4 text-white">Deposit Funds</h3>
               <div className="flex items-center space-x-2 mb-4">
                 <input
                   type="number"
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(e.target.value)}
-                  className="border rounded p-2 w-full md:w-64"
+                  className="bg-gray-700 border border-gray-600 text-white rounded p-2 w-full md:w-64 focus:border-blue-500 focus:ring-blue-500"
                   min="0"
                   step="0.1"
                   placeholder="Amount to deposit"
                 />
-                <span className="font-medium">TEST</span>
+                <span className="font-medium text-gray-300">TEST</span>
               </div>
               
               <div className="flex space-x-3">
                 <button
                   onClick={handleApprove}
                   disabled={isLoading || !isConnected}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md disabled:opacity-50 flex items-center"
+                  className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2 rounded-md disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center shadow-lg border border-blue-600"
                 >
                   {isLoading && txHash ? (
                     <>
@@ -474,7 +474,7 @@ export default function ControllerInteraction() {
                 <button
                   onClick={handleDeposit}
                   disabled={isLoading || !isConnected}
-                  className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-md disabled:opacity-50 flex items-center"
+                  className="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded-md disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center shadow-lg border border-green-600"
                 >
                   {isLoading && txHash ? (
                     <>
@@ -492,8 +492,8 @@ export default function ControllerInteraction() {
           
           {activeTab === 'yield' && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">Generate Yield</h3>
-              <p className="text-gray-600 mb-4">
+              <h3 className="text-lg font-semibold mb-4 text-white">Generate Yield</h3>
+              <p className="text-gray-300 mb-4">
                 This simulates the yield generation process for testing purposes. In a real-world scenario, 
                 yield would be generated automatically by the strategy's investments.
               </p>
@@ -501,7 +501,7 @@ export default function ControllerInteraction() {
               <button
                 onClick={handleGenerateYield}
                 disabled={isLoading || !isConnected}
-                className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-md disabled:opacity-50 flex items-center"
+                className="bg-purple-700 hover:bg-purple-800 text-white px-6 py-2 rounded-md disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center shadow-lg border border-purple-600"
               >
                 {isLoading && txHash ? (
                   <>
@@ -518,24 +518,24 @@ export default function ControllerInteraction() {
           
           {activeTab === 'withdraw' && (
             <div>
-              <h3 className="text-lg font-semibold mb-4">Withdraw Funds</h3>
+              <h3 className="text-lg font-semibold mb-4 text-white">Withdraw Funds</h3>
               <div className="flex items-center space-x-2 mb-4">
                 <input
                   type="number"
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
-                  className="border rounded p-2 w-full md:w-64"
+                  className="bg-gray-700 border border-gray-600 text-white rounded p-2 w-full md:w-64 focus:border-blue-500 focus:ring-blue-500"
                   min="0"
                   step="0.1"
                   placeholder="Amount to withdraw"
                 />
-                <span className="font-medium">TEST</span>
+                <span className="font-medium text-gray-300">TEST</span>
               </div>
               
               <button
                 onClick={handleWithdraw}
                 disabled={isLoading || !isConnected}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md disabled:opacity-50 flex items-center"
+                className="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center shadow-lg border border-red-600"
               >
                 {isLoading && txHash ? (
                   <>
@@ -553,39 +553,39 @@ export default function ControllerInteraction() {
       </div>
       
       {/* Contract Info */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-        <h3 className="text-lg font-semibold mb-4">Contract Information</h3>
+      <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-6 shadow-lg">
+        <h3 className="text-lg font-semibold mb-4 text-white">Contract Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="text-sm font-medium text-gray-500 mb-1">Controller</h4>
-            <p className="font-mono text-xs break-all">{testControllerAddress}</p>
-            <p className="mt-1">Balance: {controllerBalance} TEST</p>
+            <h4 className="text-sm font-medium text-gray-400 mb-1">Controller</h4>
+            <p className="font-mono text-xs break-all text-gray-300">{testControllerAddress}</p>
+            <p className="mt-1 text-gray-300">Balance: {controllerBalance} TEST</p>
           </div>
           
           <div>
-            <h4 className="text-sm font-medium text-gray-500 mb-1">Strategy</h4>
-            <p className="font-mono text-xs break-all">{testStrategyAddress}</p>
-            <p className="mt-1">Balance: {strategyBalance} TEST</p>
+            <h4 className="text-sm font-medium text-gray-400 mb-1">Strategy</h4>
+            <p className="font-mono text-xs break-all text-gray-300">{testStrategyAddress}</p>
+            <p className="mt-1 text-gray-300">Balance: {strategyBalance} TEST</p>
           </div>
         </div>
       </div>
       
       {/* Transaction Status */}
       {txHash && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Transaction Status</h3>
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 shadow-lg">
+          <h3 className="text-lg font-semibold mb-4 text-white">Transaction Status</h3>
           <div className="flex items-center mb-4">
             <div className={`w-3 h-3 rounded-full mr-2 ${isWaiting ? 'bg-yellow-400' : isConfirmed ? 'bg-green-500' : 'bg-blue-500'}`}></div>
-            <span className="font-medium">{isWaiting ? 'Processing...' : isConfirmed ? 'Confirmed' : 'Pending'}</span>
+            <span className="font-medium text-gray-300">{isWaiting ? 'Processing...' : isConfirmed ? 'Confirmed' : 'Pending'}</span>
           </div>
           
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Transaction Hash:</p>
+          <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+            <p className="text-sm text-gray-400 mb-2">Transaction Hash:</p>
             <a 
               href={`https://sepolia.etherscan.io/tx/${txHash}`} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-blue-500 hover:underline break-all font-mono text-xs"
+              className="text-blue-400 hover:text-blue-300 hover:underline break-all font-mono text-xs"
             >
               {txHash}
             </a>

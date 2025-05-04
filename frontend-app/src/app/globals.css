@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #111827; /* gray-900 */
+  --foreground: #f3f4f6; /* gray-100 */
+  --card-bg: #1f2937; /* gray-800 */
+  --card-border: #374151; /* gray-700 */
+  --highlight: #3b82f6; /* blue-500 */
+  --highlight-dark: #2563eb; /* blue-600 */
+  --success: #10b981; /* green-500 */
+  --warning: #f59e0b; /* amber-500 */
+  --danger: #ef4444; /* red-500 */
+  --text-primary: #f3f4f6; /* gray-100 */
+  --text-secondary: #9ca3af; /* gray-400 */
+  --text-tertiary: #6b7280; /* gray-500 */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Light theme overrides (not used by default) */
+.light {
+  --background: #f9fafb; /* gray-50 */
+  --foreground: #111827; /* gray-900 */
+  --card-bg: #ffffff; /* white */
+  --card-border: #e5e7eb; /* gray-200 */
+  --text-primary: #111827; /* gray-900 */
+  --text-secondary: #4b5563; /* gray-600 */
+  --text-tertiary: #6b7280; /* gray-500 */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Dark scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1f2937; /* gray-800 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4b5563; /* gray-600 */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b7280; /* gray-500 */
 }
