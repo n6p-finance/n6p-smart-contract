@@ -60,14 +60,18 @@ export const CONTRACT_ADDRESSES = {
   // Sepolia Testnet addresses
   sepolia: {
     aiDecisionModule: '0x93F7d6566Aa4011aA7A0043Ddda4c6cCc3954BF7', // Deployed AIDecisionModule address
-    vault: '0xCe20CA4FD82f03Bbbbd4c79cf8516E05F6457426', // Deployed TestVault address
+    vault: '0x616102e0C0af01aF67a877031a199d880178913D', // Updated TestVault address with controller support
     testToken: '0x47112e1874336Dae68Bd14D0c4373902db63aB6F', // Deployed TestToken address
+    testController: '0x92FcbFaa42AD84d0EF230AA5e38eaEa4af129fc9', // Deployed TestController address
+    testStrategy: '0x377ea45291DED69A76a9959d32745af618Cc1C26', // Deployed TestStrategy address
   },
   // Local development addresses
   local: {
     aiDecisionModule: '0x5FbDB2315678afecb367f032d93F642f64180aa3', // Local AIDecisionModule address
     vault: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0', // Local Vault address
     testToken: '0x0000000000000000000000000000000000000000', // Placeholder for local TestToken
+    testController: '0x0000000000000000000000000000000000000000', // Placeholder for local TestController
+    testStrategy: '0x0000000000000000000000000000000000000000', // Placeholder for local TestStrategy
   },
   // Use the appropriate environment based on the current chain
   aiDecisionModule: process.env.NEXT_PUBLIC_USE_TESTNET === 'true' 

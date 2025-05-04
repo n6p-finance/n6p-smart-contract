@@ -5,6 +5,9 @@ import { useAccount } from 'wagmi';
 import MCPDecisionCard from './mcp/MCPDecisionCard';
 import LoadingSpinner from './ui/LoadingSpinner';
 import ErrorDisplay from './ui/ErrorDisplay';
+import ControllerInteraction from './ControllerInteraction';
+import AIDecisionSimulation from './AIDecisionSimulation';
+import { NavbarSpacer } from './Navbar';
 import { CONTRACT_ADDRESSES } from '@/config/web3';
 
 /**
@@ -53,7 +56,9 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="dashboard-container">
+    <>
+      <NavbarSpacer />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="dashboard-container">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold text-gray-900">NapFi AI Dashboard</h1>
         <div className="bg-gray-100 px-4 py-2 rounded-full">
@@ -133,53 +138,39 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
           
-          <div data-testid="dashboard-card">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">AI Decision Insights</h2>
-            <p className="text-gray-600 mb-6">
-              Understand why NapFi AI has allocated your funds this way
-            </p>
-            
+          <div data-testid="dashboard-card" className="lg:col-span-2">
             {isConnected ? (
-              <MCPDecisionCard 
-                decisionId={latestDecisionId || ''} 
-                aiDecisionModuleAddress={CONTRACT_ADDRESSES.aiDecisionModule}
+              <AIDecisionSimulation 
+                controllerBalance="100"
+                strategyBalance="50"
+                strategyAPY="5.2"
+                onAllocationChange={(strategyId, allocation) => {
+                  console.log(`Strategy ${strategyId} allocation changed to ${allocation}%`);
+                  // In a real implementation, this would trigger a contract call to update allocations
+                }}
               />
             ) : (
-              <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                <p className="text-gray-600 mb-4">Connect your wallet to view AI allocation decisions</p>
+              <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-800">AI Decision Module</h2>
+                <p className="text-gray-600 mb-6">
+                  Connect your wallet to interact with the NapFi AI Decision Module
+                </p>
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                  <p className="text-gray-600">The AI Decision Module analyzes market conditions and optimizes your yield strategy in real-time</p>
+                </div>
               </div>
             )}
-            
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold mb-4 text-gray-800">Decision History</h3>
-              <ul className="divide-y divide-gray-200">
-                <li className="py-3 flex justify-between items-center">
-                  <div>
-                    <span className="text-sm text-gray-500 block">May 1, 2025</span>
-                    <span className="text-gray-800">Initial allocation</span>
-                  </div>
-                  <button className="bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm py-1 px-3 rounded transition-colors">View</button>
-                </li>
-                <li className="py-3 flex justify-between items-center">
-                  <div>
-                    <span className="text-sm text-gray-500 block">May 15, 2025</span>
-                    <span className="text-gray-800">Rebalance due to market change</span>
-                  </div>
-                  <button className="bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm py-1 px-3 rounded transition-colors">View</button>
-                </li>
-                <li className="py-3 flex justify-between items-center">
-                  <div>
-                    <span className="text-sm text-gray-500 block">June 1, 2025</span>
-                    <span className="text-gray-800">Added new strategy</span>
-                  </div>
-                  <button className="bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm py-1 px-3 rounded transition-colors">View</button>
-                </li>
-              </ul>
-            </div>
           </div>
+          
+          {isConnected && (
+            <div className="col-span-1 lg:col-span-2" data-testid="controller-interaction">
+              <ControllerInteraction />
+            </div>
+          )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

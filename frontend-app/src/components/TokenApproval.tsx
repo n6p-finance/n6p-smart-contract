@@ -92,7 +92,7 @@ const TokenApproval: React.FC<TokenApprovalProps> = ({
     query: {
       enabled: Boolean(tokenAddress),
     }
-  });
+  }) as { data: string | undefined };
 
   // Read user's token balance
   const { data: tokenBalance } = useReadContract({
@@ -153,14 +153,14 @@ const TokenApproval: React.FC<TokenApprovalProps> = ({
       
       <div className="bg-yellow-50 p-4 rounded-md mb-4 border border-yellow-200">
         <p className="text-sm text-yellow-800">
-          <strong>Important:</strong> Before depositing, you need to approve the Vault contract to spend your {tokenSymbol || 'tokens'}.
+          <strong>Important:</strong> Before depositing, you need to approve the Vault contract to spend your {typeof tokenSymbol === 'string' ? tokenSymbol : 'tokens'}.
         </p>
       </div>
 
       {/* Balance display */}
       <div className="bg-gray-50 rounded-lg p-4 mb-4">
         <div className="flex justify-between">
-          <span className="text-gray-600">Your {tokenSymbol || 'Token'} Balance:</span>
+          <span className="text-gray-600">Your {typeof tokenSymbol === 'string' ? tokenSymbol : 'Token'} Balance:</span>
           <span className="font-semibold">{formattedBalance}</span>
         </div>
       </div>
