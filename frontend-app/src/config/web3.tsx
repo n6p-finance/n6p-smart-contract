@@ -1,5 +1,4 @@
 import { getDefaultConfig, getDefaultWallets } from '@rainbow-me/rainbowkit';
-import { QueryClient } from '@tanstack/react-query';
 import { createConfig, http } from 'wagmi';
 import { Chain, sepolia } from 'wagmi/chains';
 
@@ -24,9 +23,6 @@ const localAnvil: Chain = {
     },
   },
 };
-
-// Create a query client for React Query
-export const queryClient = new QueryClient();
 
 // Define the chains we want to support
 export const chains = [sepolia] as const;
