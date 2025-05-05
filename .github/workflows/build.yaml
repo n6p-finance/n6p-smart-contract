@@ -41,6 +41,8 @@ jobs:
 
       # Build Next.js app
       - name: Build Next.js app
+        env:
+          NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: "47ef282c9343d40209929de4d60d58cb"
         run: bun run build
 
       # Set release version from tag
@@ -67,7 +69,8 @@ jobs:
       - name: Build and tag Docker image
         working-directory: ./frontend-app
         run: |
-          docker build -t ${{ env.ARTIFACT_REGION }}/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:latest \
+          docker build --build-arg NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID="47ef282c9343d40209929de4d60d58cb" \
+                       -t ${{ env.ARTIFACT_REGION }}/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:latest \
                        -t ${{ env.ARTIFACT_REGION }}/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:release \
                        -t ${{ env.ARTIFACT_REGION }}/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:${{ env.RELEASE_VERSION }} .
 

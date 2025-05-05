@@ -15,6 +15,9 @@ RUN bun install --frozen-lockfile
 FROM base AS builder
 WORKDIR /app
 
+# Accept build arguments for environment variables
+ARG NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -23,6 +26,7 @@ RUN if [ -f .env.docker-production ]; then \
     cp .env.docker-production .env; \
     else \
     echo "NODE_ENV=production" > .env; \
+    echo "NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}" >> .env; \
     echo "# Default environment variables" >> .env; \
     fi
 
