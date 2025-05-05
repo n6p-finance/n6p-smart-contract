@@ -53,7 +53,7 @@ export const config = createConfig({
 export const CONTRACT_ADDRESSES = {
   // Sepolia Testnet addresses
   sepolia: {
-    aiDecisionModule: '0x93F7d6566Aa4011aA7A0043Ddda4c6cCc3954BF7', // Deployed AIDecisionModule address
+    aiDecisionModule: process.env.NEXT_PUBLIC_AI_DECISION_MODULE_ADDRESS ?? '0x93F7d6566Aa4011aA7A0043Ddda4c6cCc3954BF7', // Deployed AIDecisionModule address
     vault: '0x616102e0C0af01aF67a877031a199d880178913D', // Updated TestVault address with controller support
     testToken: '0x47112e1874336Dae68Bd14D0c4373902db63aB6F', // Deployed TestToken address
     testController: '0x92FcbFaa42AD84d0EF230AA5e38eaEa4af129fc9', // Deployed TestController address
