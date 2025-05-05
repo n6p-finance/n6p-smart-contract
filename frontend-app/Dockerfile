@@ -35,6 +35,9 @@ RUN if [ -f .env.docker-production ]; then \
 # Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Set WalletConnect project ID
+ENV NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID="47ef282c9343d40209929de4d60d58cb"
+
 # Skip linting in the build process to avoid ESLint compatibility issues with Bun
 RUN NODE_OPTIONS="--max_old_space_size=4096" NEXT_TELEMETRY_DISABLED=1 bunx --bun next build
 
@@ -45,6 +48,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 # Uncomment the following line in case you want to disable telemetry during runtime.
 ENV NEXT_TELEMETRY_DISABLED=1
+# Set WalletConnect project ID for runtime
+ENV NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID="47ef282c9343d40209929de4d60d58cb"
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
