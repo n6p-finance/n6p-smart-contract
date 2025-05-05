@@ -30,13 +30,13 @@ export const chains = [sepolia] as const;
 // Set up wallets
 export const { wallets } = getDefaultWallets({
   appName: 'NapFi AI',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "", // Get one at https://cloud.walletconnect.com
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "47ef282c9343d40209929de4d60d58cb", // Get one at https://cloud.walletconnect.com
 });
 
 export default getDefaultConfig({
 	appName: "NapFi AI",
 	chains,
-	projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "",
+	projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "47ef282c9343d40209929de4d60d58cb",
 	ssr: false,
 });
 
