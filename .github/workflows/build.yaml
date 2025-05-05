@@ -16,7 +16,7 @@ jobs:
       id-token: "write"
     env:
       IMAGE_NAME: napfi-ai
-      PROJECT_ID: napfi-ai
+      PROJECT_ID: mamenesia
       ARTIFACT_REGION: asia-southeast2-docker.pkg.dev
       PACKAGE_MANAGER: bun
     steps:
@@ -54,7 +54,7 @@ jobs:
         name: "Authenticate to Google Cloud"
         uses: "google-github-actions/auth@v1"
         with:
-          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+          credentials_json: "${{ secrets.SERVICE_ACCOUNT_KEY }}"
 
       # Set up Cloud SDK
       - name: "Set up Cloud SDK"
@@ -69,8 +69,7 @@ jobs:
       - name: Build and tag Docker image
         working-directory: ./frontend-app
         run: |
-          docker build --build-arg NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID="47ef282c9343d40209929de4d60d58cb" \
-                       -t ${{ env.ARTIFACT_REGION }}/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:latest \
+          docker build -t ${{ env.ARTIFACT_REGION }}/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:latest \
                        -t ${{ env.ARTIFACT_REGION }}/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:release \
                        -t ${{ env.ARTIFACT_REGION }}/${{ env.PROJECT_ID }}/images/${{ env.IMAGE_NAME }}:${{ env.RELEASE_VERSION }} .
 
