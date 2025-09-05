@@ -41,6 +41,9 @@ contract TestVault is Ownable, ReentrancyGuard, Pausable {
     // Total supply of shares issued
     uint256 public totalShares;
 
+    // InsurancePool address for fee collection
+    address public insurancePool;
+
     // -----------------
     // Events
     // -----------------
@@ -136,6 +139,12 @@ contract TestVault is Ownable, ReentrancyGuard, Pausable {
     function deposit(uint256 _amount) external nonReentrant whenNotPaused {
         require(_amount > 0, "Deposit: amount must be greater than zero");
 
+        // take Fee to Insurance Pool
+        if (insurancePool != address(0)) {
+            uint256 fee = (_amount * 2) / 1000; // 0.2% fee
+            uint256 depositAmount = _amount - fee;
+        }
+            
         // Get current total pool value from controller
         address activeStrategy = controller.getStrategy();
         uint256 poolBalance = controller.getStrategyBalance(activeStrategy, address(this));
@@ -144,10 +153,10 @@ contract TestVault is Ownable, ReentrancyGuard, Pausable {
         uint256 sharesToMint;
         if (totalShares == 0) {
             // First depositor gets 1:1 shares
-            sharesToMint = _amount;
+            sharesToMint = depositAmount;
         } else {
             require(poolBalance > 0, "Deposit: invalid pool balance");
-            sharesToMint = (_amount * totalShares) / poolBalance;
+            sharesToMint = (depositAmount * totalShares) / poolBalance;
         }
         require(sharesToMint > 0, "Deposit: zero shares");
 
