@@ -52,7 +52,9 @@ contract TestVault is Ownable, ReentrancyGuard, Pausable {
     event StrategyUpdated(address indexed newStrategy);
     event EmergencyWithdraw(uint256 amount);
     event EmergencyUserWithdraw(address indexed user, uint256 amount, uint256 sharesBurned);
-
+    event FeeDeposited(uint256 amount);
+    event FeeClaimed(address indexed to, uint256 amount);
+    
     // -----------------
     // Constructor
     // -----------------
@@ -136,52 +138,67 @@ contract TestVault is Ownable, ReentrancyGuard, Pausable {
      * @dev User receives proportional shares representing their ownership
      * @dev Updated to route deposits through controller
      */
-    function deposit(uint256 _amount) external nonReentrant whenNotPaused {
-        require(_amount > 0, "Deposit: amount must be greater than zero");
+function deposit(uint256 _amount) external nonReentrant whenNotPaused {
+    require(_amount > 0, "Deposit: amount must be greater than zero");
 
-        // take Fee to Insurance Pool
-        if (insurancePool != address(0)) {
-            uint256 fee = (_amount * 2) / 1000; // 0.2% fee
-            uint256 depositAmount = _amount - fee;
-        }
-            
-        // Get current total pool value from controller
-        address activeStrategy = controller.getStrategy();
-        uint256 poolBalance = controller.getStrategyBalance(activeStrategy, address(this));
+    uint256 fee = 0;
+    uint256 depositAmount = _amount;
 
-        // Calculate how many shares to mint
-        uint256 sharesToMint;
-        if (totalShares == 0) {
-            // First depositor gets 1:1 shares
-            sharesToMint = depositAmount;
-        } else {
-            require(poolBalance > 0, "Deposit: invalid pool balance");
-            sharesToMint = (depositAmount * totalShares) / poolBalance;
-        }
-        require(sharesToMint > 0, "Deposit: zero shares");
+    // Deduct fee to Insurance Pool if configured
+    if (insurancePool != address(0)) {
+        fee = (_amount * 2) / 1000; // 0.2% fee
+        depositAmount = _amount - fee;
+    }
 
-        // Pull tokens from user into vault
-        token.safeTransferFrom(msg.sender, address(this), _amount);
+    // Pull full amount from user
+    token.safeTransferFrom(msg.sender, address(this), _amount);
 
-        // Update user and total share accounting
-        shares[msg.sender] += sharesToMint;
-        totalShares += sharesToMint;
+    // Send fee to Insurance Pool
+    if (fee > 0) {
+        token.safeTransfer(insurancePool, fee);
+    }
 
-        // Approve controller to pull tokens
-        uint256 currentAllowance = token.allowance(address(this), address(controller));
-        if (currentAllowance != 0) {
-            token.approve(address(controller), 0); // Reset allowance (safety pattern)
-        }
-        token.approve(address(controller), _amount);
+    // --- SHARES CALCULATION ---
+    address activeStrategy = controller.getStrategy();
+    uint256 poolBalance = controller.getStrategyBalance(activeStrategy, address(this));
 
-        // Deposit into strategy via controller
-        controller.depositFromVault(activeStrategy, _amount);
+    uint256 sharesToMint;
+    if (totalShares == 0) {
+        sharesToMint = depositAmount; // first depositor = 1:1
+    } else {
+        require(poolBalance > 0, "Deposit: invalid pool balance");
+        sharesToMint = (depositAmount * totalShares) / poolBalance;
+    }
+    require(sharesToMint > 0, "Deposit: zero shares");
 
-        // Post-deposit balance check (basic sanity)
-        uint256 newPoolBalance = controller.getStrategyBalance(activeStrategy, address(this));
-        require(newPoolBalance >= poolBalance + _amount, "Deposit: pool balance mismatch");
+    // Update accounting
+    shares[msg.sender] += sharesToMint;
+    totalShares += sharesToMint;
 
-        emit Deposit(msg.sender, _amount, sharesToMint);
+    // Approve and send funds to strategy via controller
+    token.approve(address(controller), depositAmount);
+    controller.depositFromVault(activeStrategy, depositAmount);
+
+    emit Deposit(msg.sender, depositAmount, sharesToMint);
+}
+
+    /**
+     * @notice Set the Insurance Pool address for fee collection
+     * @dev Can be set to address(0) to disable fees
+     */
+    function setInsurancePool(address _insurancePool) external onlyOwner {
+        require(_insurancePool != address(0), "InsurancePool zero");
+        insurancePool = _insurancePool;
+    }
+
+    /**
+     * @notice Deposit fees directly to Insurance Pool
+     * @dev Called by vault when user deposits
+     * @param amount Amount of tokens to send as fee
+     */
+    function depositFee(uint256 amount) external {
+        require(msg.sender == vault, "Only vault can deposit fees");
+        token.transferFrom(vault, address(this), amount);
     }
 
     /**
