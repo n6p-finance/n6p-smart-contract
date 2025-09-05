@@ -6,6 +6,7 @@ import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import "openzeppelin-contracts/contracts/utils/Pausable.sol";
+import "openzeppelin-contracts/contracts/governance/TimelockController.sol";
 import "../interfaces/IStrategy.sol";
 
 /*
@@ -16,6 +17,7 @@ import "../interfaces/IStrategy.sol";
   - Admin (owner) can add/remove strategies and perform emergency actions
   - SafeERC20, ReentrancyGuard, Pausable, Ownable used for safety
   - Updated to include strategy verification methods
+  - Modified to support multiple strategies by removing single-strategy assumption
 */
 contract TestController is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
@@ -47,6 +49,9 @@ contract TestController is Ownable, ReentrancyGuard, Pausable {
     /// @notice Timelock duration for strategy addition (in seconds)
     uint256 public constant TIMELOCK_DURATION = 1 days;
 
+    /// @notice Timelock contract for strategy additions
+    TimelockController public immutable timelock;
+
     /// --------------------
     /// Events (minimal & meaningful)
     /// --------------------
@@ -63,12 +68,17 @@ contract TestController is Ownable, ReentrancyGuard, Pausable {
 
     /**
      * @param _token underlying token address (use same token as Vault)
-     * @dev Updated to set governance to initial owner
+     * @param _initialOwner owner address
+     * @param _timelock address of the TimelockController contract
+     * @dev Updated to set governance to initial owner and initialize timelock
      */
-    constructor(address _token, address _initialOwner) Ownable(_initialOwner) {
+    constructor(address _token, address _initialOwner, address _timelock) Ownable(_initialOwner) {
         require(_token != address(0), "Token zero");
+        require(_initialOwner != address(0), "Owner zero");
+        require(_timelock != address(0), "Timelock zero");
         token = IERC20(_token);
         governance = _initialOwner;
+        timelock = TimelockController(payable(_timelock));
     }
 
     // ---------------------
@@ -135,6 +145,7 @@ contract TestController is Ownable, ReentrancyGuard, Pausable {
      * @param _strategy Address of the strategy to add
      */
     function addStrategy(address _strategy) external onlyGovernance {
+        require(msg.sender == address(timelock), "Controller: caller not timelock");
         require(_strategy != address(0), "Strategy zero");
         require(!isStrategy[_strategy], "Already added");
         require(!blacklistedStrategies[_strategy], "Strategy blacklisted");
@@ -155,6 +166,7 @@ contract TestController is Ownable, ReentrancyGuard, Pausable {
      * @dev This does not force withdrawing funds — owner should call emergencyWithdraw first if needed
      */
     function removeStrategy(address _strategy) external onlyOwner onlyManagedStrategy(_strategy) {
+        require(strategyBalances[_strategy] == 0, "Withdraw funds first");
         isStrategy[_strategy] = false;
         uint256 len = strategies.length;
         for (uint256 i = 0; i < len; ++i) {
@@ -208,11 +220,11 @@ contract TestController is Ownable, ReentrancyGuard, Pausable {
         uint256 testAmount = 1 ether; // Small test amount
         uint256 initialBalance = token.balanceOf(address(this));
         require(token.balanceOf(address(this)) >= testAmount, "Insufficient controller balance");
-        uint256 currentAllowance = token.allowance(address(this), _strategy); // Check current allowance to avoid issues with some tokens like USDT because of non-standard approve behavior that requires setting to 0 first
+        uint256 currentAllowance = token.allowance(address(this), _strategy);
         if (currentAllowance != 0) {
             token.approve(_strategy, 0);
         }
-        token.approve(_strategy, testAmount); // Approve strategy to pull tokens even when required to be set to 0 first
+        token.approve(_strategy, testAmount);
         try strategy.deposit(testAmount) {
             uint256 balanceAfterDeposit = strategy.getBalance(address(this));
             require(balanceAfterDeposit >= testAmount, "Strategy balance mismatch after deposit");
@@ -236,16 +248,6 @@ contract TestController is Ownable, ReentrancyGuard, Pausable {
         try strategy.generateYield() {} catch {
             revert("Strategy yield generation failed");
         }
-    }
-
-    /**
-     * @notice Get the active strategy (assumes first whitelisted strategy)
-     * @dev Added to support TestVault’s strategy queries
-     * @return Address of the active strategy
-     */
-    function getStrategy() external view returns (address) {
-        require(strategies.length > 0, "No strategies");
-        return strategies[0];
     }
 
     // ---------------------

@@ -6,22 +6,39 @@ import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import "openzeppelin-contracts/contracts/utils/Pausable.sol";
-import "./TestController.sol"; // Updated import to reference TestController
+import "./TestController.sol";
 
 /**
  * @title TestVault
- * @dev A minimal vault that mints/burns internal "shares" against a single strategy.
+ * @dev A minimal vault that mints/burns internal "shares" against multiple strategies.
  *
+ * NOTE: Architecture inspired by Yearn V2 vaults but simplified for testing.
+ *
+ * user <-> TestVault <-> TestController <-> TestStrategies
+ *                     |
+ *                InsurancePool
 
-NOTE: Architecture inspired by Yearn V2 vaults but simplified for testing.
+ User
+  ↕ (deposit/withdraw)
+TestVault
+  ↕ (depositFromVault/returnFundsToVault)
+TestController
+  ↕ (allocateToStrategy/withdraw)
+StrategyRegistry ← AIDecisionModule
+  ↕ (strategy selection)   ↑ (allocation decisions)
+Strategies (Aave, Compound, etc.)
+  ↕ (price/yield data)
+PriceOracle / YieldOracle
+  ↕ (security checks)
+SecurityModule
+  ↕ (fees)
+InsurancePool
 
-user <-> TestVault <-> TestController <-> TestStrategies
-
-
+ *
  * Main features:
- * - Users deposit tokens and receive proportional shares
- * - Users can withdraw tokens by burning shares
- * - Funds are invested in an external strategy (yield farming, lending, etc.)
+ * - Users deposit tokens and receive proportional shares per strategy
+ * - Users can withdraw tokens by burning shares from a specific strategy
+ * - Funds are invested in external strategies (yield farming, lending, etc.)
  * - Pausable: deposits/withdraws can be paused in emergencies
  * - Owner can rescue funds (emergencyWithdraw)
  * - Users can redeem only idle vault tokens (emergencyUserWithdraw) if strategy is broken
@@ -35,11 +52,11 @@ contract TestVault is Ownable, ReentrancyGuard, Pausable {
     // The controller contract managing strategies
     TestController public controller;
 
-    // User address => number of vault shares owned
-    mapping(address => uint256) public shares;
+    // User address => strategy address => number of vault shares owned
+    mapping(address => mapping(address => uint256)) public userStrategyShares;
 
-    // Total supply of shares issued
-    uint256 public totalShares;
+    // Strategy address => total supply of shares issued
+    mapping(address => uint256) public totalStrategyShares;
 
     // InsurancePool address for fee collection
     address public insurancePool;
@@ -47,21 +64,20 @@ contract TestVault is Ownable, ReentrancyGuard, Pausable {
     // -----------------
     // Events
     // -----------------
-    event Deposit(address indexed user, uint256 amount, uint256 sharesMinted);
-    event Withdraw(address indexed user, uint256 amount, uint256 sharesBurned);
+    event Deposit(address indexed user, uint256 amount, uint256 sharesMinted, address indexed strategy);
+    event Withdraw(address indexed user, uint256 amount, uint256 sharesBurned, address indexed strategy);
     event StrategyUpdated(address indexed newStrategy);
-    event EmergencyWithdraw(uint256 amount);
-    event EmergencyUserWithdraw(address indexed user, uint256 amount, uint256 sharesBurned);
+    event EmergencyWithdraw(address indexed strategy, uint256 amount);
+    event EmergencyUserWithdraw(address indexed user, uint256 amount, uint256 sharesBurned, address indexed strategy);
     event FeeDeposited(uint256 amount);
     event FeeClaimed(address indexed to, uint256 amount);
-    
+
     // -----------------
     // Constructor
     // -----------------
 
     /**
      * @notice Initialize vault with underlying token and controller
-     * @dev Updated to use controller instead of direct strategy
      * @param _token ERC20 token accepted by the vault
      * @param _controller Controller contract managing strategies
      */
@@ -89,7 +105,7 @@ contract TestVault is Ownable, ReentrancyGuard, Pausable {
      * @dev Routes through controller to add strategy to whitelist
      */
     function setStrategy(address _strategy) external onlyOwner {
-        controller.addStrategy(_strategy);
+        require(controller.isStrategy(_strategy), "Invalid strategy");
         emit StrategyUpdated(_strategy);
     }
 
@@ -108,15 +124,15 @@ contract TestVault is Ownable, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @notice Pull all funds back from strategy to vault
+     * @notice Pull all funds back from a specific strategy to vault
      * @dev Use only in emergencies — this breaks normal accounting
-     * @dev Updated to route through controller
      */
-    function emergencyWithdraw() external onlyOwner whenPaused {
-        uint256 strategyBal = controller.getStrategyBalance(address(controller.getStrategy()), address(this));
+    function emergencyWithdraw(address _strategy) external onlyOwner whenPaused {
+        require(controller.isStrategy(_strategy), "Invalid strategy");
+        uint256 strategyBal = controller.getStrategyBalance(_strategy, address(this));
         if (strategyBal > 0) {
-            controller.emergencyWithdrawFromStrategy(address(controller.getStrategy()), strategyBal);
-            emit EmergencyWithdraw(strategyBal);
+            controller.emergencyWithdrawFromStrategy(_strategy, strategyBal);
+            emit EmergencyWithdraw(_strategy, strategyBal);
         }
     }
 
@@ -129,59 +145,6 @@ contract TestVault is Ownable, ReentrancyGuard, Pausable {
         _token.safeTransfer(to, amount);
     }
 
-    // -----------------
-    // User functions
-    // -----------------
-
-    /**
-     * @notice Deposit underlying tokens into vault
-     * @dev User receives proportional shares representing their ownership
-     * @dev Updated to route deposits through controller
-     */
-function deposit(uint256 _amount) external nonReentrant whenNotPaused {
-    require(_amount > 0, "Deposit: amount must be greater than zero");
-
-    uint256 fee = 0;
-    uint256 depositAmount = _amount;
-
-    // Deduct fee to Insurance Pool if configured
-    if (insurancePool != address(0)) {
-        fee = (_amount * 2) / 1000; // 0.2% fee
-        depositAmount = _amount - fee;
-    }
-
-    // Pull full amount from user
-    token.safeTransferFrom(msg.sender, address(this), _amount);
-
-    // Send fee to Insurance Pool
-    if (fee > 0) {
-        token.safeTransfer(insurancePool, fee);
-    }
-
-    // --- SHARES CALCULATION ---
-    address activeStrategy = controller.getStrategy();
-    uint256 poolBalance = controller.getStrategyBalance(activeStrategy, address(this));
-
-    uint256 sharesToMint;
-    if (totalShares == 0) {
-        sharesToMint = depositAmount; // first depositor = 1:1
-    } else {
-        require(poolBalance > 0, "Deposit: invalid pool balance");
-        sharesToMint = (depositAmount * totalShares) / poolBalance;
-    }
-    require(sharesToMint > 0, "Deposit: zero shares");
-
-    // Update accounting
-    shares[msg.sender] += sharesToMint;
-    totalShares += sharesToMint;
-
-    // Approve and send funds to strategy via controller
-    token.approve(address(controller), depositAmount);
-    controller.depositFromVault(activeStrategy, depositAmount);
-
-    emit Deposit(msg.sender, depositAmount, sharesToMint);
-}
-
     /**
      * @notice Set the Insurance Pool address for fee collection
      * @dev Can be set to address(0) to disable fees
@@ -191,81 +154,156 @@ function deposit(uint256 _amount) external nonReentrant whenNotPaused {
         insurancePool = _insurancePool;
     }
 
+    // -----------------
+    // User functions
+    // -----------------
+
     /**
-     * @notice Deposit fees directly to Insurance Pool
-     * @dev Called by vault when user deposits
-     * @param amount Amount of tokens to send as fee
+     * @notice Deposit underlying tokens into vault for multiple strategies
+     * @dev User receives proportional shares representing their ownership in each strategy
+     * @param _amounts Array of amounts of tokens to deposit per strategy
+     * @param _strategies Array of whitelisted strategy addresses
      */
-    function depositFee(uint256 amount) external {
-        require(msg.sender == vault, "Only vault can deposit fees");
-        token.transferFrom(vault, address(this), amount);
+    function depositToMultipleStrategies(uint256[] calldata _amounts, address[] calldata _strategies) external nonReentrant whenNotPaused {
+        require(_amounts.length == _strategies.length, "Mismatched inputs");
+        for (uint256 i = 0; i < _amounts.length; i++) {
+            deposit(_amounts[i], _strategies[i]);
+        }
     }
 
     /**
-     * @notice Withdraw underlying tokens from vault
-     * @dev Updated to route withdrawals through controller
-     * @param _amount Amount of tokens user wants back
+     * @notice Deposit underlying tokens into vault for a specific strategy
+     * @dev User receives proportional shares representing their ownership in the strategy
+     * @param _amount Amount of tokens to deposit
+     * @param _strategy Address of the whitelisted strategy
      */
-    function withdraw(uint256 _amount) external nonReentrant whenNotPaused {
+    function deposit(uint256 _amount, address _strategy) external nonReentrant whenNotPaused {
+        require(_amount > 0, "Deposit: amount must be greater than zero");
+        require(controller.isStrategy(_strategy), "Invalid strategy");
+
+        uint256 fee = 0;
+        uint256 depositAmount = _amount;
+        if (insurancePool != address(0)) {
+            fee = (_amount * 2) / 1000; // 0.2% fee
+            depositAmount = _amount - fee;
+        }
+
+        // Pull full amount from user
+        token.safeTransferFrom(msg.sender, address(this), _amount);
+
+        // Send fee to Insurance Pool
+        if (fee > 0) {
+            token.safeTransfer(insurancePool, fee);
+            emit FeeDeposited(fee);
+        }
+
+        // --- SHARES CALCULATION ---
+        uint256 poolBalance = controller.getStrategyBalance(_strategy, address(this));
+        uint256 balanceBefore = poolBalance;
+
+        uint256 sharesToMint;
+        if (totalStrategyShares[_strategy] == 0) {
+            sharesToMint = depositAmount; // first depositor = 1:1
+        } else {
+            require(poolBalance > 0, "Deposit: invalid pool balance");
+            sharesToMint = (depositAmount * totalStrategyShares[_strategy]) / poolBalance;
+        }
+        require(sharesToMint > 0, "Deposit: zero shares");
+
+        // Update accounting
+        userStrategyShares[msg.sender][_strategy] += sharesToMint;
+        totalStrategyShares[_strategy] += sharesToMint;
+
+        // Approve and send funds to strategy via controller
+        token.approve(address(controller), depositAmount);
+        controller.depositFromVault(_strategy, depositAmount);
+
+        // Check balance protection
+        uint256 balanceAfter = controller.getStrategyBalance(_strategy, address(this));
+        require(balanceAfter >= balanceBefore + depositAmount, "Deposit: strategy balance mismatch");
+
+        emit Deposit(msg.sender, depositAmount, sharesToMint, _strategy);
+    }
+
+    /**
+     * @notice Withdraw underlying tokens from vault for a specific strategy
+     * @param _amount Amount of tokens user wants back
+     * @param _strategy Address of the whitelisted strategy
+     */
+    function withdraw(uint256 _amount, address _strategy) external nonReentrant whenNotPaused {
         require(_amount > 0, "Withdraw: amount must be greater than zero");
-        require(shares[msg.sender] > 0, "Withdraw: no shares owned");
+        require(userStrategyShares[msg.sender][_strategy] > 0, "Withdraw: no shares owned");
+        require(controller.isStrategy(_strategy), "Invalid strategy");
 
         // Get current pool balance from controller
-        address activeStrategy = controller.getStrategy();
-        uint256 poolBalance = controller.getStrategyBalance(activeStrategy, address(this));
-        require(poolBalance > 0 && totalShares > 0, "Withdraw: empty pool");
+        uint256 poolBalance = controller.getStrategyBalance(_strategy, address(this));
+        require(poolBalance > 0 && totalStrategyShares[_strategy] > 0, "Withdraw: empty pool");
 
         // Compute user’s max withdrawable balance
-        uint256 userBalance = (shares[msg.sender] * poolBalance) / totalShares;
+        uint256 userBalance = (userStrategyShares[msg.sender][_strategy] * poolBalance) / totalStrategyShares[_strategy];
         require(_amount <= userBalance, "Withdraw: amount exceeds balance");
 
         // Calculate how many shares to burn
-        uint256 sharesToBurn = (_amount * totalShares) / poolBalance;
+        uint256 sharesToBurn = (_amount * totalStrategyShares[_strategy]) / poolBalance;
         require(sharesToBurn > 0, "Withdraw: zero shares to burn");
 
         // Update accounting
-        shares[msg.sender] -= sharesToBurn;
-        totalShares -= sharesToBurn;
+        userStrategyShares[msg.sender][_strategy] -= sharesToBurn;
+        totalStrategyShares[_strategy] -= sharesToBurn;
 
         // Ensure vault has enough tokens to pay user
         uint256 vaultBalance = token.balanceOf(address(this));
         if (vaultBalance < _amount) {
             // Pull missing amount from strategy via controller
             uint256 missing = _amount - vaultBalance;
-            controller.returnFundsToVault(activeStrategy, missing);
+            controller.returnFundsToVault(_strategy, missing);
+        }
+
+        // --- WITHDRAWAL FEE LOGIC ---
+        uint256 fee = 0;
+        uint256 amountAfterFee = _amount;
+        if (insurancePool != address(0)) {
+            fee = (_amount * 2) / 1000; // 0.2% fee
+            amountAfterFee = _amount - fee;
+            if (fee > 0) {
+                token.safeTransfer(insurancePool, fee);
+                emit FeeDeposited(fee);
+            }
         }
 
         // Transfer tokens back to user
-        token.safeTransfer(msg.sender, _amount);
+        token.safeTransfer(msg.sender, amountAfterFee);
 
-        emit Withdraw(msg.sender, _amount, sharesToBurn);
+        emit Withdraw(msg.sender, amountAfterFee, sharesToBurn, _strategy);
     }
 
     /**
      * @notice Emergency withdrawal for users
      * @dev Lets users redeem their proportional share of idle vault tokens
      *      Does not interact with strategy (assume it may be broken)
+     *      Note: Users may receive less than their full balance if strategy funds are trapped
      */
-    function emergencyUserWithdraw() external nonReentrant whenPaused {
-        require(shares[msg.sender] > 0, "Emergency: no shares owned");
-        require(totalShares > 0, "Emergency: no shares supply");
+    function emergencyUserWithdraw(address _strategy) external nonReentrant whenPaused {
+        require(userStrategyShares[msg.sender][_strategy] > 0, "Emergency: no shares owned");
+        require(totalStrategyShares[_strategy] > 0, "Emergency: no shares supply");
+        require(controller.isStrategy(_strategy), "Invalid strategy");
 
         // Only use tokens already idle in vault
         uint256 vaultBalance = token.balanceOf(address(this));
         require(vaultBalance > 0, "Emergency: no idle tokens");
 
         // Calculate user’s proportional share of idle tokens
-        uint256 userShares = shares[msg.sender];
-        uint256 amountToWithdraw = (userShares * vaultBalance) / totalShares;
+        uint256 userShares = userStrategyShares[msg.sender][_strategy];
+        uint256 amountToWithdraw = (userShares * vaultBalance) / totalStrategyShares[_strategy];
 
-        // Burn all user shares
-        shares[msg.sender] = 0;
-        totalShares -= userShares;
+        // Burn all user shares for this strategy
+        userStrategyShares[msg.sender][_strategy] = 0;
+        totalStrategyShares[_strategy] -= userShares;
 
         // Transfer idle tokens to user
         token.safeTransfer(msg.sender, amountToWithdraw);
 
-        emit EmergencyUserWithdraw(msg.sender, amountToWithdraw, userShares);
+        emit EmergencyUserWithdraw(msg.sender, amountToWithdraw, userShares, _strategy);
     }
 
     // -----------------
@@ -273,31 +311,31 @@ function deposit(uint256 _amount) external nonReentrant whenNotPaused {
     // -----------------
 
     /**
-     * @notice Total value managed by vault (in strategy)
-     * @dev Updated to query controller for strategy balance
+     * @notice Total value managed by vault for a specific strategy
      */
-    function getBalance() external view returns (uint256) {
-        return controller.getStrategyBalance(controller.getStrategy(), address(this));
+    function getBalance(address _strategy) external view returns (uint256) {
+        require(controller.isStrategy(_strategy), "Invalid strategy");
+        return controller.getStrategyBalance(_strategy, address(this));
     }
 
     /**
-     * @notice User’s balance in underlying tokens (not shares)
-     * @dev Updated to query controller for strategy balance
+     * @notice User’s balance in underlying tokens for a specific strategy
      */
-    function getUserBalance(address _user) external view returns (uint256) {
-        if (totalShares == 0) return 0;
-        uint256 poolBalance = controller.getStrategyBalance(controller.getStrategy(), address(this));
-        return (shares[_user] * poolBalance) / totalShares;
+    function getUserBalance(address _user, address _strategy) external view returns (uint256) {
+        require(controller.isStrategy(_strategy), "Invalid strategy");
+        if (totalStrategyShares[_strategy] == 0) return 0;
+        uint256 poolBalance = controller.getStrategyBalance(_strategy, address(this));
+        return (userStrategyShares[_user][_strategy] * poolBalance) / totalStrategyShares[_strategy];
     }
 
     /**
-     * @notice Price per share = total pool / total shares
-     * @dev Updated to query controller for strategy balance
+     * @notice Price per share for a specific strategy
      */
-    function getPricePerShare() external view returns (uint256) {
-        if (totalShares == 0) return 1e18;
-        uint256 poolBalance = controller.getStrategyBalance(controller.getStrategy(), address(this));
-        return (poolBalance * 1e18) / totalShares;
+    function getPricePerShare(address _strategy) external view returns (uint256) {
+        require(controller.isStrategy(_strategy), "Invalid strategy");
+        if (totalStrategyShares[_strategy] == 0) return 1e18;
+        uint256 poolBalance = controller.getStrategyBalance(_strategy, address(this));
+        return (poolBalance * 1e18) / totalStrategyShares[_strategy];
     }
 
     /**
@@ -308,11 +346,11 @@ function deposit(uint256 _amount) external nonReentrant whenNotPaused {
     }
 
     /**
-     * @notice Balance of tokens inside strategy
-     * @dev Updated to query controller for strategy balance
+     * @notice Balance of tokens inside a specific strategy
      */
-    function getStrategyBalance() external view returns (uint256) {
-        return controller.getStrategyBalance(controller.getStrategy(), address(this));
+    function getStrategyBalance(address _strategy) external view returns (uint256) {
+        require(controller.isStrategy(_strategy), "Invalid strategy");
+        return controller.getStrategyBalance(_strategy, address(this));
     }
 
     /**
@@ -324,40 +362,32 @@ function deposit(uint256 _amount) external nonReentrant whenNotPaused {
 
     /**
      * @notice Get the controller address
-     * @dev Updated to return controller instead of unused controller field
      */
     function getController() external view returns (address) {
         return address(controller);
     }
 
     /**
-     * @notice Get the active strategy address
-     * @dev Added to query controller for the active strategy
+     * @notice Strategy-reported APY for a specific strategy
      */
-    function getStrategy() external view returns (address) {
-        return controller.getStrategy();
-    }
-
-    /**
-     * @notice Strategy-reported APY (for UI only, not trustless)
-     * @dev Updated to query controller for strategy APY
-     */
-    function apy() external view returns (uint256) {
-        return controller.getStrategyAPY(controller.getStrategy());
-    }
-
-    /**
-     * @notice Total supply of shares
-     */
-    function getTotalShares() external view returns (uint256) {
-        return totalShares;
+    function apy(address _strategy) external view returns (uint256) {
+        require(controller.isStrategy(_strategy), "Invalid strategy");
+        return controller.getStrategyAPY(_strategy);
     }
 
     /**
      * @notice Forward call to strategy to simulate yield generation (testing only)
-     * @dev Updated to route through controller
      */
-    function generateYield() external {
-        controller.triggerYieldGeneration(controller.getStrategy());
+    function generateYield(address _strategy) external {
+        require(controller.isStrategy(_strategy), "Invalid strategy");
+        controller.triggerYieldGeneration(_strategy);
+    }
+
+    /**
+     * @notice Total supply of shares for a specific strategy
+     */
+    function getTotalShares(address _strategy) external view returns (uint256) {
+        require(controller.isStrategy(_strategy), "Invalid strategy");
+        return totalStrategyShares[_strategy];
     }
 }
