@@ -52,6 +52,23 @@ contract ControllerAPIYield is Ownable, ReentrancyGuard, Pausable {
     /// @notice Timelock contract for strategy additions
     TimelockController public immutable timelock;
 
+    /**
+     * @notice Strategy parameters struct to track strategy state
+     * @dev Mirrors common strategy parameters for potential future use
+     * Not actively used in this controller but can be extended
+     */
+    struct StrategyParams {
+        uint256 performanceFee;
+        uint256 activation;
+        uint256 debtRatio;
+        uint256 minDebtPerHarvest;
+        uint256 maxDebtPerHarvest;
+        uint256 lastReport;
+        uint256 totalDebt;
+        uint256 totalGain;
+        uint256 totalLoss;
+    }
+
     /// --------------------
     /// Events (minimal & meaningful)
     /// --------------------
