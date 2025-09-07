@@ -7,7 +7,7 @@ import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import "openzeppelin-contracts/contracts/utils/Pausable.sol";
 import "openzeppelin-contracts/contracts/governance/TimelockController.sol";
-import "../interfaces/IStrategy.sol";
+import "../interfaces/IStrategyAPI.sol";
 
 /*
   TestController.sol - improved and aligned with TestVault.sol
@@ -19,7 +19,7 @@ import "../interfaces/IStrategy.sol";
   - Updated to include strategy verification methods
   - Modified to support multiple strategies by removing single-strategy assumption
 */
-contract TestController is Ownable, ReentrancyGuard, Pausable {
+contract ControllerAPIYield is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     /// @notice The vault contract that is allowed to interact (set by owner)
