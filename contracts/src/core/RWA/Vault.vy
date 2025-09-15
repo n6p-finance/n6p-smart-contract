@@ -524,6 +524,66 @@ def setGuardian(guardian: address):
     self.guardian = guardian
     log UpdateGuardian(guardian)
 
+@external
+def setEmergencyShutdown(active: bool):
+    """
+    @notice
+        Activates or deactivates Vault mode where all Strategies go into full
+        withdrawal.
+
+        During Emergency Shutdown:
+        1. No Users may deposit into the Vault (but may withdraw as usual.)
+        2. Governance may not add new Strategies.
+        3. Each Strategy must pay back their debt as quickly as reasonable to
+            minimally affect their position.
+        4. Only Governance may undo Emergency Shutdown.
+
+        See contract level note for further details.
+
+        This may only be called by governance or the guardian.
+    @param active
+        If true, the Vault goes into Emergency Shutdown. If false, the Vault
+        goes back into Normal Operation.
+    """
+    if active:
+        assert msg.sender in [self.governance, self.guardian] # how does it work behind the hood?
+    else:
+        assert msg.sender == self.governance
+    self.emergencyShutdown = active
+    log EmergencyShutdown(active)
+
+@external
+def setWithdrawalQueue(queue: address[MAXIMUM_STRATEGIES]):
+    """
+    @notice
+        Updates the withdrawalQueue to match the addresses and order specified
+        by `queue`.
+
+        There can be fewer strategies than the maximum, as well as fewer than
+        the total number of strategies active in the vault. `withdrawalQueue`
+        will be updated in a gas-efficient manner, assuming the input is well-
+        ordered with 0x0 only at the end.
+
+        This may only be called by governance or management.
+    @dev
+        This is order sensitive, specify the addresses in the order in which
+        funds should be withdrawn (so `queue`[0] is the first Strategy withdrawn
+        from, `queue`[1] is the second, etc.)
+
+        This means that the least impactful Strategy (the Strategy that will have
+        its core positions impacted the least by having funds removed) should be
+        at `queue`[0], then the next least impactful at `queue`[1], and so on.
+    @param queue
+        The array of addresses to use as the new withdrawal queue. This is
+        order sensitive.
+    """
+    assert msg.sender in [self.governance, self.management]
+    
+    
+
+
+
+
     
 
 
