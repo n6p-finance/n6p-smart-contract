@@ -1,5 +1,9 @@
 # @version 0.2.11
 
+"""
+ Registry = index, governance, and lookup source of truth for vaults and strategies.
+ It enables modularity, easier upgrades, and centralized visibility without holding funds or performing yield operations.
+"""
 
 interface Vault:
     def token() -> address: view

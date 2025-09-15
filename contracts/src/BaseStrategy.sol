@@ -11,30 +11,28 @@ Architecture:
                   │(vaults ↔ strategies)│
                   └─────────┬──────────┘
                             │
-                            ▼
-                  ┌─────────────────────┐
+                  ┌─────────▼───────────┐
                   │   Aggregator Vault  │
+                  │   (ERC-4626)        │
                   └─────────┬──────────┘
-      ┌─────────────────────┴───────────────────────┐
-      │                                             │
-      ▼                                             ▼
-┌───────────────┐                             ┌───────────────┐
-│ RWA Vault(s)  │                             │ DeFi Vault(s) │
-│ ERC-7540      │                             │ ERC-4626      │
-└─────┬─────────┘                             └─────┬─────────┘
-      │                                             │
-      ▼                                             ▼
-┌───────────────┐                             ┌───────────────┐
-│ RWA Strategy  │                             │ DeFi Strategy │
-└───────────────┘                             └───────────────┘
+      ┌───────────────┴───────────────────────┐
+      ▼                                       ▼
+┌───────────────┐                         ┌───────────────┐
+│ RWA Vault(s)  │                         │ DeFi Vault(s) │
+│ ERC-7540      │                         │ ERC-4626      │
+└─────┬─────────┘                         └─────┬─────────┘
+      ▼                                         ▼
+┌───────────────┐                         ┌───────────────┐
+│ RWA Strategy  │                         │ DeFi Strategy │
+└───────────────┘                         └───────────────┘
+      ▲                                       ▲
+      │                                       │
+      └─────────────── Lunar Bot ──────────── ┘
+          (automation / keeper operations)
 
 Registry Contract:
-
-Aggregator Vault:
-- Aggregates multiple vaults into a single vault
-- Allows for easy management of multiple vaults
-- Allows for easy management of multiple strategies
-- Allows for easy management of multiple vaults
+- Maintains a registry of all vaults and strategies
+- Allows for easy management of multiple vaults and strategies
  */
 struct StrategyParams {
     uint256 performanceFee;
