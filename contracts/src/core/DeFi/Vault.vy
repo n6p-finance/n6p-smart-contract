@@ -297,11 +297,11 @@ def initialize(
     assert self.activation == 0  # dev: no devops199
     self.token = ERC20(token)
     if nameOverride == "":
-        self.name = concat(DetailedERC20(token).symbol(), " yVault")
+        self.name = concat(DetailedERC20(token).symbol(), " nVault")
     else:
         self.name = nameOverride
     if symbolOverride == "":
-        self.symbol = concat("yv", DetailedERC20(token).symbol())
+        self.symbol = concat("nv", DetailedERC20(token).symbol())
     else:
         self.symbol = symbolOverride
     decimals: uint256 = DetailedERC20(token).decimals()
@@ -322,7 +322,7 @@ def initialize(
     log UpdateManagementFee(convert(200, uint256))
     self.lastReport = block.timestamp
     self.activation = block.timestamp
-    self.lockedProfitDegradation = convert(DEGRADATION_COEFFICIENT * 46 / 10 ** 6 , uint256) # 6 hours in blocks
+    self.lockedProfitDegradation = convert(DEGRADATION_COEFFICIENT * 46 / 10 ** 6 , uint256) # 6 hours in block, why degradation coefficient?
     # EIP-712
 
 
@@ -332,7 +332,7 @@ def apiVersion() -> String[28]:
     """
     @notice
         Used to track the deployed version of this contract. In practice you
-        can use this version number to compare with Yearn's GitHub and
+        can use this version number to compare with Napfi's GitHub and
         determine which version of the source matches this deployed contract.
     @dev
         All strategies must have an `apiVersion()` that matches the Vault's
@@ -347,7 +347,7 @@ def domain_separator() -> bytes32:
     return keccak256(
         concat(
             DOMAIN_TYPE_HASH,
-            keccak256(convert("Yearn Vault", Bytes[11])),
+            keccak256(convert("Napfi Vault", Bytes[11])),
             keccak256(convert(API_VERSION, Bytes[28])),
             convert(chain.id, bytes32),
             convert(self, bytes32)
@@ -795,7 +795,8 @@ def permit(owner: address, spender: address, amount: uint256, expiry: uint256, s
             )
         )
     )
-    # NOTE: signature is packed as r, s, v
+    # NOTE: signature is packed as r, s, v: offchain signing for owner, but spender still spend gas
+    # @dev: how does it work under the hood? ECDSA how it works? visualize in geogebra!
     r: uint256 = convert(slice(signature, 0, 32), uint256)
     s: uint256 = convert(slice(signature, 32, 32), uint256)
     v: uint256 = convert(slice(signature, 64, 1), uint256)

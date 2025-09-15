@@ -3,7 +3,24 @@
 @license GNU AGPLv3
 @author rudeus33
 @notice
-    Napfi Token Vault
+    Napfi Token Vault (ERC-7540) is async 
+"""
+
+"""
+@dev Keep:
+    NOTE: IEP-712 is implementing ERC-4626 without any signature so it is gasless
+@dev Questions:
+    NOTE: What's the difference between ERC-7540 and ERC-4626?
+    ERC-7540 is async, ERC-4626 is sync.
+
+    NOTE: What's the difference between async and sync?
+
+    NOTE: What's the different on how to implement async and sync?
+
+@what need to be updated in vault so it matches ERC-7540 specification:
+    NOTE: 1. ERC-7540 
+    
+
 """
 
 API_VERSION: constant(string[28]) = "0.4.6"
@@ -58,6 +75,7 @@ event Transfer:
     receiver: indexed(address)
     value: uint256
 
+
 event Approval:
     owner: indexed(address)
     spender: indexed(address)
@@ -79,7 +97,6 @@ event Sweep:
 
 event LockedProfitDegradationUpdated:
     value: uint256
-
 
 event StrategyAdded:
     strategy: indexed(address)
@@ -105,8 +122,6 @@ event FeeReport:
     performance_fee: uint256
     strategist_fee: uint256
     duration: uint256
-    # @notice lockedProfitDegradation 
-    lockedProfitDegradation: uint256 # new based on the locked profit degradation
 
 event WithdrawFromStrategy:
     strategy: indexed(address)
@@ -114,34 +129,384 @@ event WithdrawFromStrategy:
     loss: uint256
 
 event UpdateGovernance:
-    governance: address
+    governance: address # New active governance
+
 
 event UpdateManagement:
-    management: address
+    management: address # New active manager
 
 event UpdateRewards:
     rewards: address # New active rewards recipient
 
+
+event UpdateDepositLimit:
+    depositLimit: uint256 # New active deposit limit
+
+
+event UpdatePerformanceFee:
+    performanceFee: uint256 # New active performance fee
+
+
+event UpdateManagementFee:
+    managementFee: uint256 # New active management fee
+
+
 event UpdateGuardian:
-    guardian: address # address of the active guardian
+    guardian: address # Address of the active guardian
+
 
 event EmergencyShutdown:
-    active: bool
+    active: bool # New emergency shutdown state (if false, normal operation enabled)
+
 
 event UpdateWithdrawalQueue:
-    queue: address[MAXIMUM_STRATEGIES]
+    queue: address[MAXIMUM_STRATEGIES] # New active withdrawal queue
+
 
 event StrategyUpdateDebtRatio:
-    strategy: indexed(address)
-    debtRatio: uint256
+    strategy: indexed(address) # Address of the strategy for the debt ratio adjustment
+    debtRatio: uint256 # The new debt limit for the strategy (in BPS of total assets)
+
 
 event StrategyUpdateMinDebtPerHarvest:
-    strategy: indexed(address)
-    minDebtPerHarvest: uint256
+    strategy: indexed(address) # Address of the strategy for the rate limit adjustment
+    minDebtPerHarvest: uint256  # Lower limit on the increase of debt since last harvest
 
-event RequestDeposit:
-    controller: indexed(address)
-    owner: indexed(address)
-    requestId: indexed(uint256)
-    sender: indexed(address)
-    amount: uint256
+
+event StrategyUpdateMaxDebtPerHarvest:
+    strategy: indexed(address) # Address of the strategy for the rate limit adjustment
+    maxDebtPerHarvest: uint256  # Upper limit on the increase of debt since last harvest
+
+
+event StrategyUpdatePerformanceFee:
+    strategy: indexed(address) # Address of the strategy for the performance fee adjustment
+    performanceFee: uint256 # The new performance fee for the strategy
+
+
+event StrategyMigrated:
+    oldVersion: indexed(address) # Old version of the strategy to be migrated
+    newVersion: indexed(address) # New version of the strategy
+
+
+event StrategyRevoked:
+    strategy: indexed(address) # Address of the strategy that is revoked
+
+
+event StrategyRemovedFromQueue:
+    strategy: indexed(address) # Address of the strategy that is removed from the withdrawal queue
+
+
+event StrategyAddedToQueue:
+    strategy: indexed(address) # Address of the strategy that is added to the withdrawal queue
+
+event NewPendingGovernance:
+    pendingGovernance: indexed(address)
+
+# NOTE: Track the total for overhead targeting purposes
+strategies: public(HashMap[address, StrategyParams])
+MAXIMUM_STRATEGIES: constant(uint256) = 20
+DEGRADATION_COEFFICIENT: constant(uint256) = 10 ** 18
+
+# Ordering that `withdraw` uses to determine which strategies to pull funds from
+# NOTE: Does *NOT* have to match the ordering of all the current strategies that
+#       exist, but it is recommended that it does or else withdrawal depth is
+#       limited to only those inside the queue.
+# NOTE: Ordering is determined by governance, and should be balanced according
+#       to risk, slippage, and/or volatility. Can also be ordered to increase the
+#       withdrawal speed of a particular Strategy.
+
+# NOTE: Track the total for overhead targeting purposes
+withdrawalQueue: public(address[MAXIMUM_STRATEGIES])
+
+emergencyShutdown: public(bool)
+
+depositLimit: public(uint256)  # Limit for totalAssets the Vault can hold
+debtRatio: public(uint256)  # Debt ratio for the Vault across all strategies (in BPS, <= 10k)
+totalIdle: public(uint256)
+totalDebt: public(uint256)
+lastReport: public(uint256)
+activation: public(uint256) # block.timestamp of contract deployment
+lockedProfit: public(uint256) # how much profit is locked and can't be withdrawn
+lockedProfitDegradation: public(uint256) # rate per block of degradation. DEGRADATION_COEFFICIENT is 100% per block
+rewards: public(address) # Rewards contract where Governance fees are sent to
+# Governance Fee for management of Vault (given to `rewards`)
+managementFee: public(uint256)
+# Governance Fee for performance of Vault (given to `rewards`)
+performanceFee: public(uint256)
+
+# NOTE: I dont understand why these are here, but they are in the DeFi Vault and Needs to be updated based on ERC-7540
+MAX_BPS: constant(uint256) = 10_000  # 100%, or 10k basis points, NOTE: Why is it calculate this way?
+# NOTE: A four-century period will be missing 3 of its 100 Julian leap years, leaving 97.
+#       So the average year has 365 + 97/400 = 365.2425 days
+#       ERROR(Julian): -0.0078
+#       ERROR(Gregorian): -0.0003
+#       A day = 24 * 60 * 60 sec = 86400 sec
+#       365.2425 * 86400 = 31556952.0
+SECS_PER_YEAR: constant(uint256) = 31_556_952  # 365.2425 days
+# `nonces` track `permit` approvals with signature.
+nonces: public(HashMap[address, uint256])
+DOMAIN_TYPE_HASH: constant(bytes32) = keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)')
+PERMIT_TYPE_HASH: constant(bytes32) = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
+
+
+@external
+def initialize(
+    token: address, # the token that is being deposited into the vault and withdrawn from the vault
+    governance: address, # the address that is governing the vault
+    management: address, # the address that is managing the vault
+    nameOverride: String[64], # the name of the vault
+    symbolOverride: String[32], # the symbol of the vault
+    guardian: address = msg.sender, # the address that is the guardian of the vault
+    management: address = msg.sender, # the address that is the management of the vault
+    rewards: address, # the address that is the rewards of the vault
+):
+    """
+    @notice
+        Initializes the Vault, this is called only once, when the contract is
+        deployed.
+        The performance fee is set to 10% of yield, per Strategy.
+        The management fee is set to 2%, per year.
+        The initial deposit limit is set to 0 (deposits disabled); it must be
+        updated after initialization.
+    @dev
+        If `nameOverride` is not specified, the name will be 'nv'
+        combined with the name of `token`.
+
+        If `symbolOverride` is not specified, the symbol will be 'nv'
+        combined with the symbol of `token`.
+
+        The token used by the vault should not change balances outside transfers and 
+        it must transfer the exact amount requested. Fee on transfer and rebasing are not supported.
+    @param token The token that may be deposited into this Vault.
+    @param governance The address authorized for governance interactions.
+    @param management The address of the vault manager.
+    @param nameOverride Specify a custom Vault name. Leave empty for default choice.
+    @param symbolOverride Specify a custom Vault symbol name. Leave empty for default choice.
+    @param guardian The address authorized for guardian interactions. Defaults to caller.
+    """
+    assert self.activation == 0  # dev: no devops199 this is for? why is this here?
+    if nameOverride == "":
+        self.name = concat(DetailedERC20(token).symbol(), " nVault")
+    else:
+        self.name = nameOverride
+    if symbolOverride == "":
+        self.symbol = concat("nv", DetailedERC20(token).symbol())
+    else:
+        self.symbol = symbolOverride
+    decimals: uint256 = DetailedERC20(token).decimals() # this is the decimals of the token
+    self.decimals = decimals
+    assert decimals < 256 # dev: see VVE-2020-0001? why is this here?
+    self.governance = governance
+    log UpdateGovernance(governance)
+    self.management = management
+    log UpdateManagement(management)
+    self.rewards = rewards
+    log UpdateRewards(rewards)
+    self.guardian = guardian
+    log UpdateGuardian(guardian)
+    self.performanceFee = 1000  # 10% of yield (per Strategy)
+    log UpdatePerformanceFee(convert(1000, uint256))
+    self.managementFee = 200  # 2% per year
+    log UpdateManagementFee(convert(200, uint256))
+    self.lastReport = block.timestamp
+    self.activation = block.timestamp
+    self.lockedProfitDegradation = convert(DEGRADATION_COEFFICIENT * 46 / 10 ** 6 , uint256) # 6 hours in blocks, why degradation coefficient?
+    # EIP-712
+
+@pure
+@external
+def apiVersion() -> String[28]:
+    """
+    @notice
+        Used to track the deployed version of this contract. In practice you
+        can use this version number to compare with Napfi's GitHub and
+        determine which version of the source matches this deployed contract.
+    @dev
+        All strategies must have an `apiVersion()` that matches the Vault's
+        `API_VERSION`.
+    @return API_VERSION which holds the current version of this contract.
+    """
+    return API_VERSION
+
+"""
+    @notice domain_seperator is a unique fingerprint of teh contract + network + version
+    it will unsures that a signature is only valid under:
+    - This contract(self)
+    - On this chain(chain.id)
+    - With this API version(API_VERSION)
+    - With this name("Napfi Vault)
+
+"""
+@view
+@internal
+def domain_seperator() -> bytes32: # this is the domain seperator for the EIP-712
+    return keccak256(
+        concat(
+            DOMAIN_TYPE_HASH, 
+            keccak256(convert("Napfi Vault", Bytes[11])), # name
+            keccak256(convert(API_VERSION, Bytes[28])), # api version
+            convert(chain.id, bytes32), # chain Id
+            convert(self, bytes32) # self contract
+        )
+    )
+
+@view
+@external
+def DOMAIN_SEPARATOR() -> bytes32:
+    return self.domain_seperator()
+    
+@external
+def setName(name: String[64]):
+    """
+    @notice
+        Used to change the value of `name`.
+
+        This may only be called by governance.
+    @param name the new name to use.
+    """
+    assert msg.sender == self.governance
+    self.name = name
+
+@external
+def setSymbol(symbol: String[64]):
+    """
+    @notice
+        Used to change the value of `symbol`.
+
+        This may be only called by governance.
+    @param symbol The new symbol to use.
+    """
+
+    assert.msg.sender == self.governance
+    self.symbol = symbol
+
+# 2-phase commit for a change in governance
+@external
+def setGovernance(governance: address):
+    """
+    @notice
+        Nominate a new address to use as governance.
+
+        The change does not go into effect immediately. This function sets a
+        pending change, and the governance address is not updated until
+        the proposed governance address has accepted the responsibility.
+
+        This may only be called by the current governance address.
+    @param governance The address requested to take over Vault governance.
+    """
+    assert msg.sender == self.governance
+    log NewPendingGovernance(governance)
+    self.pendingGovernance = governance # accept governance address as pendingGovernance
+
+#  after pendingGovernance we need to accept governance
+@external
+def acceptGovernance():
+    """
+    @notice
+        Once a new governance address has been proposed using setGovernance(),
+        this function may be called by the proposed address to accept the
+        responsibility of taking over governance for this contract.
+
+        This may only be called by the proposed governance address.
+    @dev
+        setGovernance() should be called by the existing governance address,
+        prior to calling this function.
+    """
+    assert.msg.sender == self.pendingGovernance
+    self.governance = msg.sender
+    log UpdateGovernance(msg.sender) # accept governance new address
+
+@external
+def setManagement(management: address):
+    """
+    @notice
+        Changes the management address.
+        Management is able to make some investment decisions adjusting parameters.
+
+        This may only be called by governance.
+    @param management The address to use for managing.
+    """
+    assert.msg.sender == self.governance
+    self.management = management
+    log UpdateManagement(management)
+
+@external
+def setRewards(rewards: address):
+    """
+    @notice
+        Changes the rewards address. Any distributed rewards
+        will cease flowing to the old address and begin flowing
+        to this address once the change is in effect.
+
+        This will not change any Strategy reports in progress, only
+        new reports made after this change goes into effect.
+
+        This may only be called by governance.
+    @param rewards The address to use for collecting rewards.
+    """
+    assert msg.sender == self.governance
+    assert not (rewards in [self, ZERO_ADDRESS])
+    self.rewards = rewards
+    log UpdateRewards(rewards)
+
+@external 
+def setLockedProfitDegradation(degradation: uint256):
+    """
+    @notice
+        Changes the locked profit degradation.
+    @param degradation The rate of degradation in percent per second scaled to 1e18.
+    """
+    assert msg.sender == self.governance
+    # Since "degradation" is of type uint256 it can never be less than zero
+    assert degradation <= DEGRADATION_COEFFICIENT # How is it correlate?
+    self.lockedProfitDegradation = degradation
+    log LockedProfitDegradationUpdated(degradation) 
+
+@external
+def setDepositLimit(limmit: uint256):
+    """
+    @notice
+        Changes the maximum amount of tokens that can be deposited in this Vault.
+
+        Note, this is not how much may be deposited by a single depositor,
+        but the maximum amount that may be deposited across all depositors.
+
+        This may only be called by governance.
+    @param limit The new deposit limit to use.
+    """
+    assert msg.sender == self.governance
+    self.depositLimit = limit
+    log UpdateDepositLimit(limit) # what does UpdateDepositLimit do? and why it's needed?
+
+
+@external
+def setPerformanceFee(fee: uint256):
+    """
+    @notice
+        Used to change the value of `performanceFee`.
+
+        Should set this value below the maximum strategist performance fee.
+
+        This may only be called by governance.
+    @param fee The new performance fee to use.
+    """
+    assert msg.sender == self.governance
+    assert fee <= MAX_BPS / 2 # why is it devided by 2?
+    self.performanceFee = fee
+    log UpdatePerformanceFee(fee)
+    
+
+    
+
+
+    
+
+    
+
+    
+
+
+    
+
+
+
