@@ -495,6 +495,38 @@ def setPerformanceFee(fee: uint256):
     self.performanceFee = fee
     log UpdatePerformanceFee(fee)
     
+@external
+def setManagementFee(fee: uint256):
+    """
+    @notice
+        Used to change the value of `managementFee`.
+
+        This may only be called by governance.
+    @param fee The new management fee to use.
+    """
+    assert msg.sender == self.governance
+    assert fee <= MAX_BPS # why not devided by 2 like Performance fee?
+    self.managementFee = fee
+    log UpdateManagementFee(fee)
+
+@external
+def setGuardian(guardian: address):
+    """
+    @notice
+        Used to change the address of `guardian`.
+
+        This may only be called by governance or the existing guardian.
+    @param guardian The new guardian address to use.
+    """
+
+    # How can we manage it? both from guardian and governance itself? 50% 50%?
+    assert msg.sender in [self.guardian, self.governance] 
+    self.guardian = guardian
+    log UpdateGuardian(guardian)
+
+    
+
+
 
     
 
