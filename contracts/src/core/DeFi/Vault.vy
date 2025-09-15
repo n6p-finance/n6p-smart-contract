@@ -1,6 +1,6 @@
 # @version 0.3.10
 """
-@title Yearn Token Vault
+@title Yearn Token Vault (ERC-4626)
 @license GNU AGPLv3
 @author yearn.finance
 @notice
@@ -47,7 +47,7 @@ interface DetailedERC20:
     def symbol() -> String[20]: view
     def decimals() -> uint256: view
 
-
+# DeFi Strategy
 interface Strategy:
     def want() -> address: view
     def vault() -> address: view
