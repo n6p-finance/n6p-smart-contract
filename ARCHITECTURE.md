@@ -116,6 +116,19 @@ The system follows a **modular architecture inspired by Yearn Finance**, separat
   * Ensures timely execution of strategy operations.
   * Maintains optimal allocation across hybrid vaults.
 
+# NapFi AI Contracts & Interaction Table
+
+| Component / Contract   | Type / ERC Standard | Description / Responsibility                                                                                  | Interacts With / Controlled By                                  |
+| ---------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| **Registry**           | Internal / Custom   | Central registry for vaults and strategies. Maintains mapping, access control, and lookup for aggregator.     | Aggregator Vault, Lunar Bot                                     |
+| **Aggregator Vault**   | ERC-4626            | User-facing vault; routes deposits to underlying RWA or DeFi vaults, issues shares, manages withdrawals.      | Users, Registry, RWA Vaults, DeFi Vaults, Lunar Bot             |
+| **RWA Vault(s)**       | ERC-7540            | Handles tokenized real-world assets with async flows; reports NAV.                                            | Aggregator Vault, RWA Strategy, Lunar Bot                       |
+| **DeFi Vault(s)**      | ERC-4626            | Handles on-chain DeFi protocols; supports synchronous deposits/withdrawals; reports TVL/share price.          | Aggregator Vault, DeFi Strategy, Lunar Bot                      |
+| **RWA Strategy**       | Internal / Custom   | Implements real-world asset investment logic; async claim/settlement.                                         | RWA Vault, Lunar Bot                                            |
+| **DeFi Strategy**      | Internal / Custom   | Implements DeFi yield-generating logic; synchronous harvests and returns funds to vaults.                     | DeFi Vault, Lunar Bot                                           |
+| **AI Decision Module** | Internal / Custom   | Provides allocation signals for hybrid RWA + DeFi vaults.                                                     | Aggregator Vault, Lunar Bot                                     |
+| **Lunar Bot**          | Automation Agent    | Keeper/automation agent: rebalances vaults, harvests strategies, settles RWA claims, executes AI allocations. | Registry, Aggregator Vault, RWA Vaults, DeFi Vaults, Strategies |
+
 ---
 
 ## System Flow
