@@ -710,6 +710,7 @@ def transferFrom(sender: address, receiver: address, amount: uint256) -> bool:
     if (self.allowance[sender][msg.sender] < MAX_UINT256):
         allowance: uint256 = self.allowance[sender][msg.sender] - amount
         self.allowance[sender][msg.sender] = allowance
+        assert allowance <= self.allowance[sender][msg.sender]  # dev: allowance underflow  
         # NOTE: Allows log filters to have a full accounting of allowance changes
         log Approval(sender, msg.sender, allowance)
     self._transfer(sender, receiver, amount)

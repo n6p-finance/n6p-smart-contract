@@ -701,13 +701,31 @@ def transfer(receiver: address, amount: uint256) -> bool:
 def transferFrom(sender: address, receiver: address, amount: uint256) -> bool:
     """
     @notice
-        Transfer shares from one address to another address.
-    @param sender The address to send the shares from.
-    @param receiver The address to send the shares to.
-    @param amount The amount of shares to send.
+        Transfers `amount` shares from `sender` to `receiver`. This operation will
+        always return true, unless the user is attempting to transfer shares
+        to this contract's address, or to 0x0.
+
+        Unless the caller has given this contract unlimited approval,
+        transfering shares will decrement the caller's `allowance` by `amount`.
+    @param sender The address shares are being transferred from.
+    @param receiver
+        The address shares are being transferred to. Must not be this contract's
+        address, must not be 0x0.
+    @param amount The quantity of shares to transfer.
     @return True if the transfer was successful.
     """
- 
+
+    # Unlimited approval (saves an SSTORAGE write)
+    if self.allowance[sender][msg.sender] != MAX_UINT256:
+        allowance: uint256 = self.allowance[sender][msg.sender] - amount
+        self.allowance[sender][msg.sender] = allowance
+        assert allowance <= self.allowance[sender][msg.sender], "Transfer exceeds allowance" #
+        # NOTE: Cannot overflow because we check that the allowance is >= amount        
+        log Approval(sender, msg.sender, allowance)
+    self._transfer(sender, receiver, amount)
+    return True
+
+
 
 
 
