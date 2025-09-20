@@ -726,7 +726,23 @@ def transferFrom(sender: address, receiver: address, amount: uint256) -> bool:
     return True
 
 
+@external
+def increaseAllowance(spender: address, allowance: uint256):
+    self.allowance[msg.sender][spender] += allowance
+    assert self.allowance[msg.sender][spender] >= allowance, "Allowance overflow" # dev: allowance overflow
+    log Approval(msg.sender, spender, self.allowance[msg.sender][spender])
+    return True
 
+
+@external
+def decreaseAllowance(spender: address, allowance: uint256):
+    self.allowance[msg.sender][spender] -= allowance
+    assert self.allowance[msg.sender][spender] <= allowance, "Allowance underflow" # dev: allowance underflow
+    log Approval(msg.sender, spender, self.allowance[msg.sender][spender])
+    return True
+
+@external
+def permit(owner: address, spender: address, value: uint256, deadline: uint256, v: uint8, r: bytes32, s: bytes32):
 
 
         
