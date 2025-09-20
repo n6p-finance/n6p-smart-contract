@@ -552,6 +552,7 @@ def setEmergencyShutdown(active: bool):
     self.emergencyShutdown = active
     log EmergencyShutdown(active)
 
+
 @external
 def setWithdrawalQueue(queue: address[MAXIMUM_STRATEGIES]):
     """
@@ -578,6 +579,142 @@ def setWithdrawalQueue(queue: address[MAXIMUM_STRATEGIES]):
         order sensitive.
     """
     assert msg.sender in [self.governance, self.management]
+
+    # HACK: Temporary until Vyper adds support for Dynamic arrays
+    old_queue: address[MAXIMUM_STRATEGIES] = empty(address[MAXIMUM_STRATEGIES]) # empty address array of max stratergies is for old queue
+    for i in range(MAXIMUM_STRATEGIES):
+        old_queue[i] = self.withdrawalQueue[i]
+        if queue[i] == ZERO_ADDRESS:
+            # NOTE: Cannot use this method to remove entries from the queue
+            assert old_queue[i] == ZERO_ADDRESS # why is this here?
+            break
+        # NOTE: Ensure that the strategy is active and not duplicated
+        assert old_queue[i] != ZERO_ADDRESS # to make sure that old queue and new queue are not same ZERO_ADDRESS
+
+        assert self.strategies[queue[i]].activation > 0 # to make sure that the strategy is active and not duplicated
+        
+        existsInOldQueue: bool = False
+
+        # NOTE: Check that the strategy is not duplicated in the new queue
+        for j in range(MAXIMUM_STRATEGIES):
+            if old_queue[j] == queue[i]:
+                existsInOldQueue = True
+                break
+            if old_queue[j] == ZERO_ADDRESS:
+                existsInOldQueue = True
+                break
+
+            if j <= i:
+                # NOTE: This will only check for duplicate entries up to i because the rest of the entries are not relevant
+                continue
+            assert old_queue[j] != queue[i] # to make sure that the strategy is not duplicated in the new queue
+
+        assert existsInOldQueue # to make sure that the strategy exists in the old queue
+
+        self.withdrawalQueue[i] = queue[i] # set the new queue
+    log UpdateWithdrawalQueue(queue)
+
+@internal
+def erc20_safe_transfer(token: address. receiver, address, amount: uint256):
+    """
+    @notice
+        Helper function to safely transfer ERC20 tokens.
+    @dev
+        Some ERC20 tokens do not return a boolean value on transfer,
+        so we need to check the return value and ensure that it is
+        either empty or true.
+    @param token The address of the ERC20 token.
+    @param receiver The address to send the tokens to.
+    @param amount The amount of tokens to send.
+    """
+    response: Bytes[32] = raw_call( # using raw_call to call the transfer function of the ERC20 token
+        token,
+        concat( # method id of transfer function + receiver address + amount
+            method_id("transfer(address,uint256)"),
+            convert(receiver, bytes32),
+            convert(amount, bytes32)
+        ),
+        max_outsize=32 # max outsize is 32 bytes (the size of a uint256 or bool
+    )
+    if len(response) > 0: # if the response is not empty
+        assert convert(response, bool), "Transfer failed!" # to make sure that the transfer was successful
+    
+
+@internal
+def erc20_safe_transferFrom(token: address, sender: address, receiver: address, amount: uint256):
+    """
+    @notice
+        Helper function to safely transferFrom ERC20 tokens.
+    @dev
+        Some ERC20 tokens do not return a boolean value on transferFrom,
+        so we need to check the return value and ensure that it is
+        either empty or true.
+    @param token The address of the ERC20 token.
+    @param sender The address to send the tokens from.
+    @param receiver The address to send the tokens to.
+    @param amount The amount of tokens to send.
+    """
+    response: Bytes[32] = raw_call( # using raw_call to call the transfer
+        token,
+        concat( # method id of transferFrom function + sender address + receiver address + amount
+            method_id("transferFrom(address,address,uint256)"),
+            convert(sender, bytes32),
+            convert(receiver, bytes32),
+            convert(amount, bytes32)
+        ),
+        max_outsize=32 # max outsize is 32 bytes (the size of a uint256 or bool
+    )
+    if len(response) > 0: # if the response is not empty
+        assert convert(response, bool), "TransferFrom failed!" # to make sure that the transfer
+
+
+@internal
+def _transfer(sender: address, receiver: address, amount: uint256):
+    """
+    @notice
+        Internal function to transfer shares from one address to another.
+    @param sender The address to send the shares from.
+    @param receiver The address to send the shares to.
+    @param amount The amount of shares to send.
+    """
+    assert receiver != ZERO_ADDRESS, "Transfer to zero address" # dev: transfer to zero address
+    assert self.balanceOf[sender] >= amount, "Insufficient balance" # dev: insufficient balance
+    self.balanceOf[sender] -= amount
+    self.balanceOf[receiver] += amount
+    log Transfer(sender, receiver, amount) # emit transfer event
+
+
+@external
+def transfer(receiver: address, amount: uint256) -> bool:
+    """
+    @notice
+        Transfer shares from the caller's address to another address.
+    @param receiver The address to send the shares to.
+    @param amount The amount of shares to send.
+    @return True if the transfer was successful.
+    """
+    self._transfer(msg.sender, receiver, amount)
+    return True
+    
+
+@external
+def transferFrom(sender: address, receiver: address, amount: uint256) -> bool:
+    """
+    @notice
+        Transfer shares from one address to another address.
+    @param sender The address to send the shares from.
+    @param receiver The address to send the shares to.
+    @param amount The amount of shares to send.
+    @return True if the transfer was successful.
+    """
+ 
+
+
+
+        
+
+
+
     
     
 

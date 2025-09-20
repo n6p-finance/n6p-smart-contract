@@ -187,13 +187,13 @@ The system follows a **modular architecture inspired by Yearn Finance**, separat
                   │   Aggregator Vault  │
                   │   (ERC-4626)        │
                   └─────────┬──────────┘
-      ┌───────────────┴───────────────────────┐
-      ▼                                       ▼
+            ┌───────────────┴───────────────────────┐───────────────────> flashloan (Check UniswapV2/V3/V4Pair.sol (swap function))
+            ▼                                       ▼
 ┌───────────────┐                         ┌───────────────┐
 │ RWA Vault(s)  │                         │ DeFi Vault(s) │
 │ ERC-7540      │                         │ ERC-4626      │
 └─────┬─────────┘                         └─────┬─────────┘
-      ▼                                       ▼
+      ▼                                         ▼
 ┌───────────────┐                         ┌───────────────┐
 │ RWA Strategy  │                         │ DeFi Strategy │
 └───────────────┘                         └───────────────┘

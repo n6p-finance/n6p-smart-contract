@@ -533,7 +533,6 @@ def setGuardian(guardian: address):
     self.guardian = guardian
     log UpdateGuardian(guardian)
 
-
 @external
 def setEmergencyShutdown(active: bool):
     """
@@ -568,7 +567,7 @@ def setWithdrawalQueue(queue: address[MAXIMUM_STRATEGIES]):
     """
     @notice
         Updates the withdrawalQueue to match the addresses and order specified
-        by `queue`.
+        by `queue` is data structure to serve first in and first out.
 
         There can be fewer strategies than the maximum, as well as fewer than
         the total number of strategies active in the vault. `withdrawalQueue`
