@@ -777,6 +777,7 @@ def permit(owner: address, spender: address, amount: uint256, expiry: uint256, s
     @return True, if transaction completes successfully
     """
     assert owner != ZERO_ADDRESS  # dev: invalid owner
+    assert spender != ZERO_ADDRESS  # dev: invalid spender
     assert expiry >= block.timestamp  # dev: permit expired
     nonce: uint256 = self.nonces[owner]
     digest: bytes32 = keccak256(

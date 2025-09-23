@@ -619,6 +619,7 @@ def setWithdrawalQueue(queue: address[MAXIMUM_STRATEGIES]):
         existsInOldQueue: bool = False
 
         # NOTE: Check that the strategy is not duplicated in the new queue
+        # old_queue[j] = queue[i] != zero_address
         for j in range(MAXIMUM_STRATEGIES):
             if old_queue[j] == queue[i]:
                 existsInOldQueue = True
@@ -766,7 +767,18 @@ def decreaseAllowance(spender: address, allowance: uint256):
 
 @external
 def permit(owner: address, spender: address, value: uint256, deadline: uint256, v: uint8, r: bytes32, s: bytes32):
+    """
+    @notice
+        Approves spender by owner's signature to expend owner's tokens.
+        See https://eips.ethereum.org/EIPS/eip-2612.
 
+    @param owner The address which is a source of funds and has signed the Permit.
+    @param spender The address which is allowed to spend the funds.
+    @param amount The amount of tokens to be spent.
+    @param expiry The timestamp after which the Permit is no longer valid.
+    @param signature A valid secp256k1 signature of Permit by owner encoded as r, s, v.
+    @return True, if transaction completes successfully
+    """
 
         
 
