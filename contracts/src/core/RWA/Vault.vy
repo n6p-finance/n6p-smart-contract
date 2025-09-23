@@ -611,8 +611,11 @@ def setWithdrawalQueue(queue: address[MAXIMUM_STRATEGIES]):
         # queue[i] = old_queue[i] != zero_address
         assert old_queue[i] != ZERO_ADDRESS 
 
+        # NOTE: Check that the strategy is active by block.timestamp and not duplicated in the new queue
+        # so block.timestamp > 0 means that the strategy is active
         assert self.strategies[queue[i]].activation > 0 # to make sure that the strategy is active and not duplicated 
-        
+
+        # ------------------------------------------------------------------
         existsInOldQueue: bool = False
 
         # NOTE: Check that the strategy is not duplicated in the new queue
