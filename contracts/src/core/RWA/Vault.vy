@@ -914,6 +914,112 @@ def _issueSharesForAmount(to: address, amount: uint256) -> uint256:
     return shares
 
 
+@external
+@nonreentrant("withdraw")
+def deposit(_amount: uint256 = MAX_UINT256, recipient: address = msg.sender) -> uint256:
+    """
+    @notice
+        Deposits `_amount` `token`, issuing shares to `recipient`. If the
+        Vault is in Emergency Shutdown, deposits will not be accepted and this
+        call will fail.
+    @dev
+        Measuring quantity of shares to issues is based on the total
+        outstanding debt that this contract has ("expected value") instead
+        of the total balance sheet it has ("estimated value") has important
+        security considerations, and is done intentionally. If this value were
+        measured against external systems, it could be purposely manipulated by
+        an attacker to withdraw more assets than they otherwise should be able
+        to claim by redeeming their shares.
+
+        On deposit, this means that shares are issued against the total amount
+        that the deposited capital can be given in service of the debt that
+        Strategies assume. If that number were to be lower than the "expected
+        value" at some future point, depositing shares via this method could
+        entitle the depositor to *less* than the deposited value once the
+        "realized value" is updated from further reports by the Strategies
+        to the Vaults.
+
+        Care should be taken by integrators to account for this discrepancy,
+        by using the view-only methods of this contract (both off-chain and
+        on-chain) to determine if depositing into the Vault is a "good idea".
+    @param _amount The quantity of tokens to deposit, defaults to all.
+    @param recipient
+        The address to issue the shares in this Vault to. Defaults to the
+        caller's address.
+    @return The issued Vault shares.
+    """
+    assert not self.emergencyShutdown, "Deposits disabled during emergency" # dev: deposits disabled during emergency
+    assert recipient not in [self, ZERO_ADDRESS], "Invalid recipient" # dev: invalid recipient
+
+    amount: uint256 = _amount
+
+    # If _amount not specified, transfer the full token balance,
+    # up to deposit limit
+    if amount == MAX_UINT256:
+        amount = min(
+            self.depositLimit - self._totalAssets(), # deposit limit - total assets = max amount that can be deposited
+            self.token.balanceOf(msg.sender) # balance of the caller
+        )
+    else:
+        # ensure that the deposit does not exceed the deposit limit
+        assert self._totalAssets() + amount <= self.depositLimit, "Deposit exceeds limit"
+
+    # ensure deposit > 0
+    assert amount > 0, "Zero deposit" # dev: zero deposit
+
+    # Issue new shares (needs to be done before taking deposit to be accurate)
+    # Shares are issued to recipient (may be different from msg.sender)
+    # See @dev note, above.
+    shares: uint256 = self._issueSharesForAmount(recipient, amount)
+
+    # Tokens are transferred from msg.sender (may be different from _recipient)
+    self.erc20_safe_transferFrom(self.token.address, msg.sender, self, amount)
+    # NOTE: totalIdle is the total amount of tokens that are not invested in any strategy
+    # amount is the new amount that is being deposited and not yet invested in any strategy
+    self.totalIdle += amount
+
+    log Deposit(recipient, shares, amount) # emit deposit event
+
+    return shares # Just in case someone wants them
+    
+@view
+@internal
+def _shareValue(shares: uint256) -> uint256:
+    # Returns price = 1:1 if vault is empty
+    if self.totalSupply == 0:
+        return shares
+
+    # Determines the current value of `shares`.
+    # NOTE: if sqrt(Vault.totalAssets()) >>> 1e39, this could potentially revert
+
+    """
+    @notice
+    1. Unlocked vault (freeFunds)
+        This is the "real vault" users can interact with right now.
+        It contains all deposits + old profits + whatever part of new profits has already unlocked.
+
+    2. Locked vault (lockedProfit)
+        This is like a separate shadow vault that nobody can touch yet.
+        It holds the newly reported profits for a short time.
+        Over the unlock period, its contents "leak" into the unlocked vault.
+
+    Total assets = unlocked vault + locked vault
+                  = freeFunds + lockedProfit
+
+    This way, we can ensure that:
+    1. The share price never decreases (because totalAssets only goes up).
+    2. New profits are gradually released over time, so that flash depositors cannot take
+       advantage of a sudden increase in share price.
+    3. It prevents people from gaming the system by timing deposits and withdrawals
+       around reports, sandwiching the report transaction.
+    """
+    return (
+        shares
+        * self._freeFunds()
+        / self.totalSupply
+    )
+
+
 
 
     
