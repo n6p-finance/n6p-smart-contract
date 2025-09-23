@@ -800,13 +800,23 @@ def permit(owner: address, spender: address, value: uint256, deadline: uint256, 
             )
         )
     )
+
     # NOTE: signature is packed as r, s, v: offchain signing for owner, but spender still spend gas
-    # @dev: how does it work under the hood? ECDSA how it works? visualize in geogebra!
+    # @dev: how does it work under the hood? 
+    # [r ............ 32 bytes][s ............ 32 bytes][v .. 1 byte]
+    #   0x
+    #71c3...1a (32 bytes for r)
+`   #9f72...e3 (32 bytes for s)
+      #1b        (1 byte for v = 27)
+
     r: uint256 = convert(slice(signature, 0, 32), uint256)
     s: uint256 = convert(slice(signature, 32, 32), uint256)
     v: uint256 = convert(slice(signature, 64, 1), uint256)
+
+    # NOTE: ecrecover is built-in function that returns the address that signed a hashed message (digest) with signature (v, r, s)
     assert ecrecover(digest, v, r, s) == owner, "Invalid signature" # dev: invalid signature
     self.allowance[owner][spender] = amount
+    # prevent double spend of signature by incrementing the nonce
     self.nonces[owner] = nonce + 1
     log Approval(owner, spender, amount)
     return True
@@ -836,9 +846,73 @@ def totalAssets() -> uint256:
     """
     return self._totalAssets()
 
-    
+@view
+@internal
+def _calculateLockedProfit() -> uint256:
+    """"
+    @notice
+        Internal view function to calculate the locked profit of the vault.
+        This is used to determine how much profit is currently locked and cannot be withdrawn.
+        The locked profit degrades over time, so the longer it has been since
+        the last report, the less profit is locked.
+    @ return The amount of profit that is currently locked and cannot be withdrawn.
+    @ fun fact: altoughh thhe funds is always can be withdrawn, the profit is locked and cannot be withdrawn
+    because it is not yet realized profit/working profit, so it is locked until the next report.
+    This prevents flash-depositors from withdrawing profit that has not yet been realized.
+    """
+    # NOTE: This function calculates the amount of profit that is currently locked and cannot be withdrawn.
+    # lockedFundsRatio R = (t-t0) * degradation
+    # degradation = DERADATION_COEFFICIENT / (6 hours in blocks)
+    lockedFundsRatio: uint256 = (block.timestamp - self.lastReport) * self.lockedProfitDegradation
 
+    # LockedProfit = LockedProfit - (LockedFundsRatio * lockedProfit)
+    if(lockedFundsRatio < DEGRADATION_COEFFICIENT):
+        lockedProfit: uint256 = self.lockedProfit
+        return lockedProfit - (
+            lockedFundsRatio 
+            * lockedProfit 
+            / DEGRADATION_COEFFICIENT
+        )
+    else: 
+        return 0
+
+@view
+@external
+def _freeFunds() -> uint256:
+    """"
+    @notice
+        Internal view function to calculate the free funds of the vault.
+        This is used to determine how much funds are currently available for withdrawal.
+        The free funds is the total assets minus the locked profit.
+    @ return The amount of funds that is currently available for withdrawal.
+    """
+    return self._totalAssets() - self._calculateLockedProfit()
         
+@internal
+def _issueSharesForAmount(to: address, amount: uint256) -> uint256:
+    """
+    @notice
+        Internal function to issue shares to an address for a given amount of assets.
+        The number of shares issued is based on the current total assets and total supply.
+    @param to The address to issue the shares to.
+    @param amount The amount of assets being deposited.
+    @return The number of shares issued.
+    """
+    shares: uint256 = 0
+    totalSupply: uint256 = self.totalSupply
+    if totalSupply > 0:
+        shares = amount * totalSupply / self._totalAssets()
+    else:
+        shares = amount
+    assert shares != 0, "Zero shares" # dev: zero shares
+
+    # Mint new shares
+    self.totalSupply = totalSupply + shares
+    self.balanceOf[to] += shares
+    log Transfer(ZERO_ADDRESS, to, shares) # emit transfer event from zero address to
+
+    return shares
+
 
 
 

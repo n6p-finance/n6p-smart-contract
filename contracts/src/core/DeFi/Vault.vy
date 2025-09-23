@@ -804,6 +804,7 @@ def permit(owner: address, spender: address, amount: uint256, expiry: uint256, s
     v: uint256 = convert(slice(signature, 64, 1), uint256)
     assert ecrecover(digest, v, r, s) == owner, "Invalid signature"  # dev: invalid signature
     self.allowance[owner][spender] = amount
+    
     self.nonces[owner] = nonce + 1
     log Approval(owner, spender, amount)
     return True
