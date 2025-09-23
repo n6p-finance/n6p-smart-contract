@@ -779,6 +779,64 @@ def permit(owner: address, spender: address, value: uint256, deadline: uint256, 
     @param signature A valid secp256k1 signature of Permit by owner encoded as r, s, v.
     @return True, if transaction completes successfully
     """
+    assert owner != ZERO_ADDRESS, "Owner cannot be zero address" # dev: owner cannot be zero address
+    assert spender != ZERO_ADDRESS, "Spender cannot be zero address" # dev: spender
+    assert expiery >= block.timestamp, "Permit expired" # dev: permit expired
+
+    nonce:uint256 = self.nonces[owner]
+    digest: bytes32 = keccak256(
+        concat(
+            b'\x19\x01',
+            self.domain_seperator(),
+            keccak256(
+                concat(
+                    PERMIT_TYPE_HASH,
+                    convert(owner, bytes32),
+                    convert(spender, bytes32),
+                    convert(amount, bytes32),
+                    convert(nonce, bytes32),
+                    convert(expiry, bytes32)
+                )
+            )
+        )
+    )
+    # NOTE: signature is packed as r, s, v: offchain signing for owner, but spender still spend gas
+    # @dev: how does it work under the hood? ECDSA how it works? visualize in geogebra!
+    r: uint256 = convert(slice(signature, 0, 32), uint256)
+    s: uint256 = convert(slice(signature, 32, 32), uint256)
+    v: uint256 = convert(slice(signature, 64, 1), uint256)
+    assert ecrecover(digest, v, r, s) == owner, "Invalid signature" # dev: invalid signature
+    self.allowance[owner][spender] = amount
+    self.nonces[owner] = nonce + 1
+    log Approval(owner, spender, amount)
+    return True
+
+
+@view
+@internal
+def _totalAssets() -> uint256:
+    """
+    @notice
+        Internal view function to calculate the total assets of the vault.
+        This includes the total idle assets, the total debt across all strategies,      
+        and the total estimated assets across all strategies.
+    @return The total assets of the vault.
+    """
+    return self.totalIdle + self.totalDebt #+ self._estimatedTotalAssets() # NOTE: Why is estimatedTotalAssets() commented out?
+
+@view
+@external
+def totalAssets() -> uint256:
+    """
+    @notice
+        Returns the total quantity of all assets under control of this
+        Vault, whether they're loaned out to a Strategy, or currently held in
+        the Vault.
+    @return The total assets under control of this Vault.
+    """
+    return self._totalAssets()
+
+    
 
         
 

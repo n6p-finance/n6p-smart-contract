@@ -776,9 +776,10 @@ def permit(owner: address, spender: address, amount: uint256, expiry: uint256, s
     @param signature A valid secp256k1 signature of Permit by owner encoded as r, s, v.
     @return True, if transaction completes successfully
     """
-    assert owner != ZERO_ADDRESS  # dev: invalid owner
-    assert spender != ZERO_ADDRESS  # dev: invalid spender
-    assert expiry >= block.timestamp  # dev: permit expired
+    assert owner != ZERO_ADDRESS, "Owner cannot be zero address" # dev: owner cannot be zero address
+    assert spender != ZERO_ADDRESS, "Spender cannot be zero address" # dev: spender
+    assert expiery >= block.timestamp, "Permit expired" # dev: permit expired
+    
     nonce: uint256 = self.nonces[owner]
     digest: bytes32 = keccak256(
         concat(
@@ -801,7 +802,7 @@ def permit(owner: address, spender: address, amount: uint256, expiry: uint256, s
     r: uint256 = convert(slice(signature, 0, 32), uint256)
     s: uint256 = convert(slice(signature, 32, 32), uint256)
     v: uint256 = convert(slice(signature, 64, 1), uint256)
-    assert ecrecover(digest, v, r, s) == owner  # dev: invalid signature
+    assert ecrecover(digest, v, r, s) == owner, "Invalid signature"  # dev: invalid signature
     self.allowance[owner][spender] = amount
     self.nonces[owner] = nonce + 1
     log Approval(owner, spender, amount)
