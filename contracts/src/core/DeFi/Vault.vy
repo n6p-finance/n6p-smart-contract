@@ -833,6 +833,7 @@ def totalAssets() -> uint256:
 @view
 @internal
 def _calculateLockedProfit() -> uint256:
+    
     lockedFundsRatio: uint256 = (block.timestamp - self.lastReport) * self.lockedProfitDegradation
 
     if(lockedFundsRatio < DEGRADATION_COEFFICIENT):

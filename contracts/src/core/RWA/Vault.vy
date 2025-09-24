@@ -994,6 +994,13 @@ def _shareValue(shares: uint256) -> uint256:
 
     """
     @notice
+
+    Purpose: Converts shares → token amount.
+    1. You already own some shares in the vault.
+    2. You want to know how much your shares are worth in underlying tokens right now.
+    3. Uses _freeFunds() because locked profits shouldn’t be redeemable yet.
+
+    There are two "vaults" in this system:
     1. Unlocked vault (freeFunds)
         This is the "real vault" users can interact with right now.
         It contains all deposits + old profits + whatever part of new profits has already unlocked.
@@ -1020,6 +1027,146 @@ def _shareValue(shares: uint256) -> uint256:
     )
 
 
+@view
+@internal
+    def _sharesForAmount(amount: uint256) -> uint256:
+        """
+        @notice
+            Internal view function to calculate the number of shares for a given amount of assets.
+        @param amount The amount of assets to convert to shares.
+        @return The number of shares that would be issued for the given amount of assets.
+        """
+        # Determines the quantity of shares to issue for a given deposit.
+        # NOTE: if sqrt(Vault.totalAssets()) >>> 1e39, this could potentially revert
+
+        _freeFunds: uint256 = self._freeFunds()
+        if _freeFunds > 0:
+            # NOTE: if sqrt(token.totalSupply()) > 1e37, this could potentially revert
+            return (
+                amount
+                * self.totalSupply
+                / _freeFunds
+            )
+        else:
+            return 0
+    
+
+@view
+@external
+def maxAvailableShares() -> uint256:
+    """
+    @notice
+        Determines the maximum quantity of shares this Vault can facilitate a
+        withdrawal for, factoring in assets currently residing in the Vault,
+        as well as those deployed to strategies on the Vault's balance sheet.
+    @dev
+        Regarding how shares are calculated, see dev note on `deposit`.
+
+        If you want to calculated the maximum a user could withdraw up to,
+        you want to use this function.
+
+        Note that the amount provided by this function is the theoretical
+        maximum possible from withdrawing, the real amount depends on the
+        realized losses incurred during withdrawal.
+    @return The total quantity of shares this Vault can provide.
+    """
+    shares: uint256 = self._sharesForAmount(self.totalIdle)
+
+    for strategy in self.withdrawalQueue:
+        if strategy == ZERO_ADDRESS:
+            break
+        shares += self._sharesForAmount(self.strategies[strategy].totalDebt)
+
+    return shares
+
+
+@internal
+    def _reportLoss(strategy: address, loss: uint256):
+        # Loss is up to the total debt issued of the strategy
+        totalDebt: uint256 = self.strategies[strategy].totalDebt
+        # NOTE: totalDebt: Current allocated capital that te vault given to this strategy
+        assert totalDebt >= loss, "Loss exceeds total debt" # dev: loss exceeds total debt
+
+        # Also, make sure we reduce our trust with the strategy by the amount of loss
+        if self.debtRatio != 0:
+            # NOTE: The context to this calculation is different than the calculation in `_reportLoss`,
+            # this calculation intentionally approximates via `totalDebt` to avoid manipulatable results
+            ratio_change: uint256 = min(
+                # NOTE: This calculation isn't 100% precise, the adjustment is ~10%-20% more severe due to EVM math
+                loss * self.debtRatio / self.totalDebt,
+                self.strategies[strategy].debtRatio,
+            )
+            self.strategies[strategy].debtRatio -= ratio_change
+            self.debtRatio -= ratio_change
+        # Finally, adjust our strategy's parameters by the loss
+        # NOTE: totalLoss: Cumulative losses that the strategy has reported to the vault
+        self.strategies[strategy].totalLoss += loss
+        # NOTE: This is update total debt of the total debt accross all strategies
+        self.strategies[strategy].totalDebt = totalDebt - loss
+        # NOTE: This update total individual strategy debt
+        self.totalDebt -= loss
+
+
+@external
+@nonreentrant("withdraw")
+def withdraw(
+    maxShares: uint256 = MAX_UINT256,
+    recipient: address = msg.sender,
+    maxLoss: uint256 = 1, # 0.01% [BPS], BPS is basis point so maxLoss is 0.01% of the total assets that can be lost during withdrawal
+) -> uint256:
+    """
+    @notice
+        Withdraws the calling account's tokens from this Vault, redeeming
+        amount `_shares` for an appropriate amount of tokens.
+
+        See note on `setWithdrawalQueue` for further details of withdrawal
+        ordering and behavior.
+    @dev
+        Measuring the value of shares is based on the total outstanding debt
+        that this contract has ("expected value") instead of the total balance
+        sheet it has ("estimated value") has important security considerations,
+        and is done intentionally. If this value were measured against external
+        systems, it could be purposely manipulated by an attacker to withdraw
+        more assets than they otherwise should be able to claim by redeeming
+        their shares.
+
+        On withdrawal, this means that shares are redeemed against the total
+        amount that the deposited capital had "realized" since the point it
+        was deposited, up until the point it was withdrawn. If that number
+        were to be higher than the "expected value" at some future point,
+        withdrawing shares via this method could entitle the depositor to
+        *more* than the expected value once the "realized value" is updated
+        from further reports by the Strategies to the Vaults.
+
+        Under exceptional scenarios, this could cause earlier withdrawals to
+        earn "more" of the underlying assets than Users might otherwise be
+        entitled to, if the Vault's estimated value were otherwise measured
+        through external means, accounting for whatever exceptional scenarios
+        exist for the Vault (that aren't covered by the Vault's own design.)
+
+        In the situation where a large withdrawal happens, it can empty the 
+        vault balance and the strategies in the withdrawal queue. 
+        Strategies not in the withdrawal queue will have to be harvested to 
+        rebalance the funds and make the funds available again to withdraw.
+    @param maxShares
+        How many shares to try and redeem for tokens, defaults to all.
+    @param recipient
+        The address to issue the shares in this Vault to. Defaults to the
+        caller's address.
+    @param maxLoss
+        The maximum acceptable loss to sustain on withdrawal. Defaults to 0.01%.
+        If a loss is specified, up to that amount of shares may be burnt to cover losses on withdrawal.
+    @return The quantity of tokens redeemed for `_shares`.
+    """
+    
+    
+
+
+
+
+
+
+    
 
 
     
