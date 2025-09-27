@@ -1096,7 +1096,9 @@ def maxAvailableShares() -> uint256:
                 loss * self.debtRatio / self.totalDebt,
                 self.strategies[strategy].debtRatio,
             )
+            # NOTE: This is update total debt ratio of the individual strategy trust
             self.strategies[strategy].debtRatio -= ratio_change
+            # NOTE: This is update total debt ratio of the total debt accross all strategies trust
             self.debtRatio -= ratio_change
         # Finally, adjust our strategy's parameters by the loss
         # NOTE: totalLoss: Cumulative losses that the strategy has reported to the vault
@@ -1105,6 +1107,7 @@ def maxAvailableShares() -> uint256:
         self.strategies[strategy].totalDebt = totalDebt - loss
         # NOTE: This update total individual strategy debt
         self.totalDebt -= loss
+
 
 
 @external
@@ -1158,38 +1161,47 @@ def withdraw(
         If a loss is specified, up to that amount of shares may be burnt to cover losses on withdrawal.
     @return The quantity of tokens redeemed for `_shares`.
     """
+    shares: uint256 = maxShares
+
+    assert maxLoss <= MAX_BPS, "maxLoss exceeds 100%" # dev: maxLoss exceeds 100%
+
+    # If _shares not specified, withdraw full balance
+    if shares == MAX_UINT256:
+        shares = self.balanceOf[msg.sender]
     
-    
+    # Limit to the shares available
+    assert shares <= self.balanceOf[msg.sender], "Insufficient shares" # dev: insufficient
+
+    # Ensure we are witdrawing something
+    assert shares > 0, "Zero shares" # dev: zero shares
+
+    value: uint256 = self._shareValue(shares) # value in token amount
+    # NOTE: make sure to use totalIdle if none then use strategies
+    vault_balance: uint256 = self.totalIdle # make a copy of totalIdle to avoid multiple SLOADs
 
 
+    if value > vault_balance:
+        # Not enough tokens in the idle vault by shares representative, withdraw from strategies
+        # NOTE: We withdraw from each strategy in the withdrawal queue,
+        # until we've withdrawn enough to cover the full amount.
+        # NOTE: This loop will break when either we've withdrawn enough,
+        # or we've gone through the entire withdrawal queue.
+        for strategy in self.withdrawalQueue:
+            if strategy == ZERO_ADDRESS:
+                break
+            
+            if value <= vault_balance:
+                break # we've withdrawn enough of shares
+
+            amountNeeded: uint256 = value - vault_balance # amount needed to withdraw from strategies
+
+            # NOTE: Don't withdraw more than the debt so that Strategy can still
+            #       continue to work based on the profits it has
+            # NOTE: This means that user will lose out on any profits that each
+            #       Strategy in the queue would return on next harvest, benefiting others
+
+            
+             
 
 
-
-
-    
-
-
-    
-    
-
-
-
-
-    
-
-
-
-    
-
-
-    
-
-    
-
-    
-
-
-    
-
-
-
+        
