@@ -1393,13 +1393,23 @@ def updateStrategyMinDebtPerHarvest(
         Change the quantity assets per block this Vault may deposit to or
         withdraw from `strategy`.
 
+        So it works like this:
+        - If the strategy has less debt than minDebtPerHarvest, it can request
+          to borrow up to minDebtPerHarvest during its next harvest.
+        - If the strategy has more debt than minDebtPerHarvest, it can be forced
+          to return down to minDebtPerHarvest during the next harvest.
+        - If the strategy has debt equal to minDebtPerHarvest, it can neither
+          borrow nor be forced to return debt during the next harvest.
+        - As this runs per batch of funds, not indivisual user funds, it is
+          possible that the strategy ends up with a debt slightly above or
+          below minDebtPerHarvest, depending on the size of the harvest.
+        - This environment is perfect to make DEX architecture to integrate.
+
         This may only be called by governance or management.
     @param strategy The Strategy to update.
     @param minDebtPerHarvest The quantity of assets per harvest this Vault
         may now deposit to or withdraw from `strategy`.
     """
-    
-
     assert msg.sender in [self.governance, self.management], "Only governance or management" # dev: only governance or management
     assert self.strategies[strategy].activation > 0
     assert self.strategies[strategy].maxDebtPerHarvest >= minDebtPerHarvest, "minDebtPerHarvest exceeds maxDebtPerHarvest" # dev: minDebtPerHarvest exceeds maxDebtPerHarvest
@@ -1409,6 +1419,169 @@ def updateStrategyMinDebtPerHarvest(
     log StrategyUpdateMinDebtPerHarvest(strategy, minDebtPerHarvest) # emit strategy update min debt per harvest event
 
 
+@external
+def updateStrategyMaxDebtPerHarvest(
+    strategy: address,
+    maxDebtPerHarvest: uint256
+):
+    
+    """
+    @notice
+        Change the quantity assets per block this Vault may deposit to or
+        withdraw from `strategy`.
+
+        This may only be called by governance or management.
+    @param strategy The Strategy to update.
+    @param maxDebtPerHarvest
+        Upper limit on the increase of debt since last harvest
+
+        minDebtPerHarvest <= debt <= maxDebtPerHarvest
+    """
+        assert msg.sender in [self.management, self.governance]
+    assert self.strategies[strategy].activation > 0
+    assert self.strategies[strategy].minDebtPerHarvest <= maxDebtPerHarvest
+    self.strategies[strategy].maxDebtPerHarvest = maxDebtPerHarvest
+    log StrategyUpdateMaxDebtPerHarvest(strategy, maxDebtPerHarvest)
+
+
+@external
+def updateStrategyPerformanceFee(
+    strategy: address,
+    performanceFee: uint256,
+):
+    """
+    @notice
+        Change the fee the strategist will receive based on this Vault's performance.
+
+        This may only be called by governance.
+    @param strategy The Strategy to update.
+    @param performanceFee The fee the strategist will receive based on this Vault's performance.
+    """
+    assert msg.sender == self.governance, "Only governance" # dev: only governance
+    assert self.strategies[strategy].activation > 0, "Strategy not active" # dev: strategy not active
+    assert performanceFee <= MAX_BPS/2, "performanceFee exceeds 50%" # dev: performanceFee exceeds 50%
+    self.strategies[strategy].performanceFee = performanceFee
+    log StrategyUpdatePerformanceFee(strategy, performanceFee) # emit strategy update performance fee event
+
+
+@internal
+def _revokeStrategy(strategy: address):
+    self.debtRatio -= self.strategies[strategy].debtRatio
+    self.strategies[strategy].debtRatio = 0 # NOTE: We set debtRatio to 0, which means the strategy is still
+    #       active, but no new debt will be given to it during `harvest`.
+    log StrategyRevoked(strategy) # emit strategy revoked event
+
+
+@external
+def migrateStrategy(
+    oldVersion: address,
+    newVersion: address
+):
+    """
+    @notice
+        Migrates a Strategy, including all assets from `oldVersion` to
+        `newVersion`.
+
+        This may only be called by governance.
+    @dev
+        Strategy must successfully migrate all capital and positions to new
+        Strategy, or else this will upset the balance of the Vault.
+
+        The new Strategy should be "empty" e.g. have no prior commitments to
+        this Vault, otherwise it could have issues.
+    @param oldVersion The existing Strategy to migrate from.
+    @param newVersion The new Strategy to migrate to.
+    """
+    assert msg.sender == self.governance, "Only governance" # dev: only governance
+    assert oldVersion != ZERO_ADDRESS, "Old version cannot be zero address" # dev: old version cannot be zero address
+    assert oldVersion != newVersion, "Cannot migrate to same version" # dev: cannot migrate to same version
+    assert self.strategies[oldVersion].activation > 0, "Old version not active" # dev: old version not active
+    assert self.strategies[newVersion].activation == 0, "New version already active" # dev: new version already
+
+    strategy: StrategyParams = self.strategies[oldVersion] # make a copy of the old strategy params
+
+    self._revokeStrategy(oldVersion) # revoke the old strategy
+    # _recokeStrategy will lower the debt ratio
+    self.debtRatio += strategy.debtRatio # add the debt ratio of the old strategy to the total debt ratio
+    # Debt is migrated to new strategy
+    self.strategies[oldVersion].otalDebt = 0
+
+    self.strategies[newVersion] = StrategyParams({
+        performanceFee: strategy.performanceFee,
+        activation: strategy.lastReport, # NOTE: We use lastReport as activation time to prevent unfair advantage
+        debtRatio: strategy.debtRatio,
+        minDebtPerHarvest: strategy.minDebtPerHarvest,
+        maxDebtPerHarvest: strategy.maxDebtPerHarvest,
+        totalDebt: strategy.totalDebt,
+        totalGain: 0,
+        totalLoss: 0,
+        lastReport: strategy.lastReport
+    })
+
+    Strategy(oldVersion).migrate(newVersion) # migrate the old strategy to the new strategy
+    log StrategyMigrated(oldVersion, newVersion) # emit strategy migrated event
+
+    for idx in range(MAXIMUM_STRATEGIES):
+        if self.withdrawalQueue[idx] == oldVersion:
+            self.withdrawalQueue[idx] = newVersion
+            return # Don't need to reorganize the queue as we are replacing one with another new version    
+
+
+@external
+def revokeStrategy(strategy: address = msg.sender):
+    """
+    @notice
+        Revoke a Strategy, setting its debt limit to 0 and preventing any
+        future deposits.
+
+        This function should only be used in the scenario where the Strategy is
+        being retired but no migration of the positions are possible, or in the
+        extreme scenario that the Strategy needs to be put into "Emergency Exit"
+        mode in order for it to exit as quickly as possible. The latter scenario
+        could be for any reason that is considered "critical" that the Strategy
+        exits its position as fast as possible, such as a sudden change in market
+        conditions leading to losses, or an imminent failure in an external
+        dependency.
+
+        This may only be called by governance, the guardian, or the Strategy
+        itself. Note that a Strategy will only revoke itself during emergency
+        shutdown.
+    @param strategy The Strategy to revoke.
+    """
+    assert msg.sender in [strategy, self.governance, self.guardian]
+    assert self.strategies[strategy].debtRatio != 0 # dev: already zero
+
+    self._revokeStrategy(strategy)
+
+
+@external
+def addStrategyToQueue(strategy: address):
+    """
+    @notice
+        Adds `strategy` to `withdrawalQueue`.
+
+        This may only be called by governance or management.
+    @dev
+        The Strategy will be appended to `withdrawalQueue`, call
+        `setWithdrawalQueue` to change the order.
+    @param strategy The Strategy to add.
+    """
+    assert msg.sender in [self.governance, self.management], "Only governance or management" # dev: only governance or management
+    # Must be current strategy
+    assert self.strategies[strategy].activation > 0, "Strategy not active"
+    # Can't already be in the queue
+    last_idx: uint256 = 0
+    for s in self.withdrawalQueue:
+        if s == ZERO_ADDRESS:
+            break
+        assert s != strategy, "Strategy already in queue" # dev: strategy already in queue
+        last_idx += 1
+    # Check if queue is full
+    assert last_idx < MAXIMUM_STRATEGIES, "Withdrawal queue full" # dev: withdrawal queue full
+
+    self.withdrawalQueue[MAXIMUM_STRATEGIES - 1] = strategy
+    self._organizeWithdrawalQueue() # organize the withdrawal queue to remove any gaps
+    log StrategyAddedToQueue(strategy) # emit strategy added to queue event
 
     
 

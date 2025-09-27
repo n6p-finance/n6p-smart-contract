@@ -1379,6 +1379,7 @@ def migrateStrategy(oldVersion: address, newVersion: address):
     """
     assert msg.sender == self.governance
     assert newVersion != ZERO_ADDRESS
+    assert oldVersion != newVersion, "Cannot migrate to same version" # dev: cannot migrate to same version
     assert self.strategies[oldVersion].activation > 0
     assert self.strategies[newVersion].activation == 0
 
