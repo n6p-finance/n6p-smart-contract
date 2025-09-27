@@ -1322,7 +1322,23 @@ def addStrategy(
     @param performanceFee
         The fee the strategist will receive based on this Vault's performance.
     """
+    # Check if queue is full
+    assert self.withdrawalQueue[MAXIMUM_STRATEGIES - 1] == ZERO_ADDRESS, "Withdrawal queue full" # dev: withdrawal queue full
+    
+    # Checking calling conditions
+    assert not self.emergencyShutdown, "Vault in emergency shutdown" # dev: vault in emergency shutdown
+    assert msg.sender == self.governance, "Only governance" # dev: only governance
 
+    # Check strategy conditions
+    assert strategy != ZERO_ADDRESS, "Strategy cannot be zero address" # dev: strategy cannot
+    assert self.strategies[strategy].activation == 0, "Strategy already added" # dev: strategy already added
+    assert self == Strategy(strategy).vault(), "Strategy not linked to this vault" # dev: strategy not linked to this vault
+    assert self.token.address == Strategy(strategy).want(), "Strategy token mismatch" # dev: strategy token mismatch
+
+    # Check strategy parameters
+    assert self.debtRatio + debtRatio <= MAX_BPS, "Total debt ratio exceeds 100%" # dev: total debt ratio exceeds 100%
+    assert minDebtPerHarvest <= maxDebtPerHarvest, "minDebtPerHarvest exceeds maxDebtPerHarvest" # dev: minDebtPerHarvest exceeds maxDebtPerHarvest
+    assert performanceFee <= MAX_BPS/2"performanceFee exceeds 100%" # dev: performanceFee exceeds 100%
     
 
 
