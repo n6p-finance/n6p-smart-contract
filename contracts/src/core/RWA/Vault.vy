@@ -1190,6 +1190,7 @@ def withdraw(
             if strategy == ZERO_ADDRESS:
                 break
             
+            # NOTE: Try to withrawl from idle vault first then real strategy
             if value <= vault_balance:
                 break # we've withdrawn enough of shares
 
@@ -1199,8 +1200,17 @@ def withdraw(
             #       continue to work based on the profits it has
             # NOTE: This means that user will lose out on any profits that each
             #       Strategy in the queue would return on next harvest, benefiting others
+            amountNeeded min(amountNeeded, self.strategies[strategy].totalDebt)
+            if amountNeeded == 0:
+                continue  # Nothing to withdraw from this Strategy, try the next one
 
-            
+            # Force withdraw amount from each Strategy in the order set by governance
+            preBalance: uint256 = self.token.balanceOf(self) # balance before withdraw
+            loss: uint256 = Strategy(strategy).withdraw(amountNeeded) # withdraw from strategy
+            withdrawn: uint256 = self.token.balanceOf(self) - preBalance # actual amount withdrawn
+            vault_balance += withdrawn # update vault balance
+
+
              
 
 
