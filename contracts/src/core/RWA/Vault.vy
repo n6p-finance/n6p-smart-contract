@@ -1302,7 +1302,7 @@ def addStrategy(
     debtRatio: uint256,
     minDebtPerHarvest: uint256,
     maxDebtPerHarvest: uint256,
-    performanceFee: uint256
+    performanceFee: uint256,
 ):
     """
     @notice
@@ -1338,8 +1338,75 @@ def addStrategy(
     # Check strategy parameters
     assert self.debtRatio + debtRatio <= MAX_BPS, "Total debt ratio exceeds 100%" # dev: total debt ratio exceeds 100%
     assert minDebtPerHarvest <= maxDebtPerHarvest, "minDebtPerHarvest exceeds maxDebtPerHarvest" # dev: minDebtPerHarvest exceeds maxDebtPerHarvest
-    assert performanceFee <= MAX_BPS/2"performanceFee exceeds 100%" # dev: performanceFee exceeds 100%
+    assert performanceFee <= MAX_BPS/2 # dev: performanceFee exceeds 100%
     
+    # Add strategy to approved strategies
+    self.strategies[strategy] = StrategyParams({
+        performanceFee: performanceFee,
+        activation: block.timestamp,
+        debtRatio: debtRatio,
+        minDebtPerHarvest: minDebtPerHarvest,
+        maxDebtPerHarvest: maxDebtPerHarvest,
+        totalDebt: 0,
+        totalGain: 0,
+        totalLoss: 0,
+        lastReport: block.timestamp
+    })
+    log StrategyAdded(strategy, debtRatio, minDebtPerHarvest, maxDebtPerHarvest, performanceFee) # emit strategy added event
+
+    # Update total debt ratio
+    self.debtRatio += debtRatio
+
+    # Add strategy to the end of the withdrawal queue
+    self.withdrawalQueue[MAXIMUM_STRATEGIES - 1] = strategy
+    self._organizeWithdrawalQueue() # organize the withdrawal queue to remove any gaps
+
+
+@external
+def updateStrategyDebtRatio(
+    strategy: address, 
+    debtRatio: uint256):
+    """
+    @notice
+        Change the quantity of assets `strategy` may manage.
+
+        This may be called by governance or management.
+    @param strategy The Strategy to update.
+    @param debtRatio The quantity of assets `strategy` may now manage.
+    """
+    assert msg.sender in [self.governance, self.management], "Only governance or management" # dev: only governance or management
+    assert self.strategies[strategy].activation > 0
+    assert Strategy(strategy_).emergencyExit() == False, "Strategy in emergency exit" # dev: strategy in emergency exit
+    self.strategies[strategy].debtRatio = debtRatio # update debt ratio
+    self debtRatio += debtRatio # update total debt ratio
+    assert self.debtRatio <= MAX_BPS, "Total debt ratio exceeds 100%" # dev: total debt ratio exceeds 100%
+    log StrategyUpdateDebtRatio(strategy, debtRatio) # emit strategy update debt ratio event
+
+
+    
+@external
+def updateStrategyMinDebtPerHarvest(
+    strategy: address,
+    minDebtPerHarvest: uint256):
+    """
+    @notice
+        Change the quantity assets per block this Vault may deposit to or
+        withdraw from `strategy`.
+
+        This may only be called by governance or management.
+    @param strategy The Strategy to update.
+    @param minDebtPerHarvest The quantity of assets per harvest this Vault
+        may now deposit to or withdraw from `strategy`.
+    """
+    
+
+    assert msg.sender in [self.governance, self.management], "Only governance or management" # dev: only governance or management
+    assert self.strategies[strategy].activation > 0
+    assert self.strategies[strategy].maxDebtPerHarvest >= minDebtPerHarvest, "minDebtPerHarvest exceeds maxDebtPerHarvest" # dev: minDebtPerHarvest exceeds maxDebtPerHarvest
+    # NOTE: We allow debtRatio to be 0, which means the strategy is still
+    #       active, but no new debt will be given to it during `harvest`.
+    self.strategiest[strategy].minDebtPerHarvest = minDebtPerHarvest
+    log StrategyUpdateMinDebtPerHarvest(strategy, minDebtPerHarvest) # emit strategy update min debt per harvest event
 
 
 
