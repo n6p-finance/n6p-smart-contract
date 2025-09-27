@@ -1160,6 +1160,20 @@ def withdraw(
         The maximum acceptable loss to sustain on withdrawal. Defaults to 0.01%.
         If a loss is specified, up to that amount of shares may be burnt to cover losses on withdrawal.
     @return The quantity of tokens redeemed for `_shares`.
+
+    Putting it together in a withdrawal flow
+
+User requests value worth of tokens.
+
+Vault first tries to pay from totalIdle.
+
+If not enough, Vault forces withdrawals from strategies.
+
+Update self.totalIdle with whatever was successfully pulled.
+
+If enough was gathered → burn equivalent shares.
+
+If losses > user’s tolerance (maxLoss) → revert to protect user.
     """
     shares: uint256 = maxShares
 
@@ -1179,7 +1193,7 @@ def withdraw(
     # NOTE: make sure to use totalIdle if none then use strategies
     vault_balance: uint256 = self.totalIdle # make a copy of totalIdle to avoid multiple SLOADs
 
-
+    # NOTE: This function is when user want to withdraw more than what is available in the vault balance
     if value > vault_balance:
         # Not enough tokens in the idle vault by shares representative, withdraw from strategies
         # NOTE: We withdraw from each strategy in the withdrawal queue,
@@ -1208,7 +1222,96 @@ def withdraw(
             preBalance: uint256 = self.token.balanceOf(self) # balance before withdraw
             loss: uint256 = Strategy(strategy).withdraw(amountNeeded) # withdraw from strategy
             withdrawn: uint256 = self.token.balanceOf(self) - preBalance # actual amount withdrawn
-            vault_balance += withdrawn # update vault balance
+            vault_balance += withdrawn # update idle vault balance
+
+            # NOTE: Withdrawer incurs any losses from liquidation
+            if loss > 0:
+                value -= loss
+                totalLoss += loss
+                self._reportLoss(strategy, loss)
+
+            # Reduce the Strategy's debt by the amount withdrawn ("realized returns")
+            # NOTE: This doesn't add to returns as it's not earned by "normal means"
+            self.strategies[strategy].totalDebt -= withdrawn
+            self.totalDebt -= withdrawn
+            log StrategyWithdrawal(strategy, withdrawn, loss) # emit strategy withdrawal event
+
+            # NOTE: If we didn't withdraw as much as we wanted to, we may need to
+            #       try the next strategy in the queue to get the full amount.
+            #       This could happen if the Strategy doesn't have enough liquidity
+            #       to cover the full amount needed.
+            
+        self.totalIdle = vault_balance # update totalIdle to the new balance
+            # NOTE: We have withdrawn everything possible out of the withdrawal queue
+            #       but we still don't have enough to fully pay them back, so adjust
+            #       to the total amount we've freed up through forced withdrawals
+        if vault_balance >= value:
+            # NOTE: Burn # of shares that corresponds to what Vault has on-hand,
+     `  `   #       including the losses that were incurred above during withdrawals
+            shares = self._sharesForAmount(value + totalLoss)
+
+        # NOTE: This loss protection is put in place to revert if losses from
+        #       withdrawing are more than what is considered acceptable.
+        assert totalLoss <= (maxLoss * value) / MAX_BPS, "Loss exceeds maxLoss" # dev: loss exceeds maxLoss
+
+    # Burn shares from sender (full value of what they asked for, including losses)
+    self.totalSupply -= shares
+    self.balanceOf[msg.sender] -= shares
+    log Transfer(msg.sender, ZERO_ADDRESS, shares) # emit transfer event to zero address
+    # NOTE: We don't need to check for underflow above because we checked that shares <= balanceOf[msg.sender] earlier
+
+    self.totalIdle -= value # update totalIdle to reflect the withdrawal
+    # Withdraw remaining balance to _recipient (may be different to msg.sender) (minus fee)
+    self.erc20_safe_transfer(self.token.address, recipient, value)
+    log Withdraw(msg.sender, recipient, shares, value) # emit withdraw event
+
+    return value # return the amount of tokens withdrawn
+
+
+@view
+@external
+def pricePerShare() -> uint256:
+    """
+    @notice Gives the price for a single Vault share.
+    @dev See dev note on `withdraw`.
+    @return The value of a single share.
+    """
+    return self._shareValue(10 ** self.decimals)
+
+
+@internal
+def _organizeWithdrawalQueue():
+    # Reorganize `withdrawalQueue` based on premise that if there is an
+    # empty value between two actual values, then the empty value should be
+    # replaced by the later value.
+    # NOTE: Relative ordering of non-zero values is maintained.
+    offset: uint256 = 0
+    for idx range(MAXIMUM_STRATEGIES):
+        strategy: uint256 = self.withdrawalQueue[idx]
+        if strategy == ZERO_ADDRESS:
+            offset += 1 # how many values we need to shift left, always '<= idx'
+        elif offset > 0:
+            # Shift left by `offset` amount
+            self.withdrawalQueue[idx - offset] = strategy
+            self.withdrawalQueue[idx] = ZERO_ADDRESS
+
+
+@external
+def addStrategy(
+    strategy: address,
+    debtRatio: uint256,
+    minDebtPerHarvest: uint256,
+    maxDebtPerHarvest: uint256,
+    performanceFee: uint256
+):
+
+
+    
+
+
+
+    
+
 
 
              
