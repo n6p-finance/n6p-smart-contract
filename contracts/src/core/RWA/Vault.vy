@@ -1304,7 +1304,24 @@ def addStrategy(
     maxDebtPerHarvest: uint256,
     performanceFee: uint256
 ):
+    """
+    @notice
+        Add a Strategy to the Vault.
 
+        This may only be called by governance.
+    @dev
+        The Strategy will be appended to `withdrawalQueue`, call
+        `setWithdrawalQueue` to change the order.
+    @param strategy The address of the Strategy to add.
+    @param debtRatio
+        The share of the total assets in the `vault that the `strategy` has access to.
+    @param minDebtPerHarvest
+        Lower limit on the increase of debt since last harvest
+    @param maxDebtPerHarvest
+        Upper limit on the increase of debt since last harvest
+    @param performanceFee
+        The fee the strategist will receive based on this Vault's performance.
+    """
 
     
 
