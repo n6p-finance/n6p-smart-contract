@@ -1758,6 +1758,38 @@ def expectedReturn(strategy: address = msg.sender) -> uint256:
 
 @internal
 def _assessFees(strategy: address, gain: uint256) -> uint256:
+    # Issue new shares to cover fees
+    # NOTE: In effect, this reduces overall share price by the combined fee
+    # NOTE: may throw if Vault.totalAssets() > 1e64, or not called for more than a year
+    if self.strategies[strategy].activation == block.timestamp:
+        return 0  # No fees on first report
+
+    duration: uint256 = block.timestamp - self.strategies[strategy].lastReport
+    assert duration != 0, "Duration cannot be zero" # dev: duration cannot be zero
+
+    if gain == 0:
+        return 0  # No fees if no gain
+
+    # Performance fee
+    management_fee: uint256 = (
+        (
+            (self.strategies[strategy].totalDebt - Strategy(strategy).delegatedAssets())
+            * duration 
+            * self.managementFee
+        )
+        / MAX_BPS
+        / SECS_PER_YEAR
+    )
+
+    # NOTE: Applies if Strategy is not shutting down, or it is but all debt paid off
+    # NOTE: No fee is taken when a Strategy is unwinding it's position, until all debt is paid
+    strategist_fee: uint256 = (
+        gain
+        * self.strategies[strategy].performanceFee
+        / MAX_BPS
+    )
+    
+    
     
 
 
