@@ -1583,6 +1583,74 @@ def addStrategyToQueue(strategy: address):
     self._organizeWithdrawalQueue() # organize the withdrawal queue to remove any gaps
     log StrategyAddedToQueue(strategy) # emit strategy added to queue event
 
+
+@external
+def removeStrategyFromQueue(strategy: address):
+    """
+    @notice
+        Remove `strategy` from `withdrawalQueue`.
+
+        This may only be called by governance or management.
+    @dev
+        We don't do this with revokeStrategy because it should still
+        be possible to withdraw from the Strategy if it's unwinding.
+    @param strategy The Strategy to remove.
+    """
+    assert msg.sender in [self.governance, self.management], "Only governance or management" # dev: only governance or management
+    for idx in range(MAXIMUM_STRATEGIES):
+        if self.withdrawalQueue[idx] == strategy:
+            self.withdrawalQueue[idx] = ZERO_ADDRESS
+            self._organizeWithdrawalQueue() # organize the withdrawal queue to remove any gaps
+            log StrategyRemovedFromQueue(strategy) # emit strategy removed from queue event
+            return
+    raise "Strategy not in queue" # dev: strategy not in queue
+
+
+@view
+@internal
+def _debtOutstanding(strategy: address) -> uint256:
+    # Determines the quantity of debt outstanding for a given Strategy.
+    # NOTE: This is the amount that the Strategy owes the Vault, based on
+    #       its debt ratio and the total assets managed by the Vault.
+    if self.debtRatio == 0:
+        return self.strategies[strategy].totalDebt # If no debt ratio, all debt is outstanding beccause no new debt will be given in order to prevent unfair advantage
+
+    strategy_debtLimit: uint256 = (
+        self.strategies[strategy].debtRatio
+        * self._totalAssets()
+        / MAX_BPS
+    )
+    strategy_totalDebt: uint256 = self.strategies[strategy].totalDebt
+
+    if self.emergencyShutdown:
+        return strategy_totalDebt # In emergency shutdown, all debt is outstanding because we want to withdraw everything as fast as possible
+    elif strategy_totalDebt <= strategy_debtLimit:
+        return 0 # If the strategy is within its debt limit, no debt is outstanding
+    else:
+        return strategy_totalDebt - strategy_debtLimit # If the strategy is over its debt limit, the excess is outstanding
+
+
+@view
+@external
+def debtOutstanding(strategy: address = msg.sender) -> uint256:
+    """
+    @notice
+        Determines if `strategy` is past its debt limit and if any tokens
+        should be withdrawn to the Vault.
+    @param strategy The Strategy to check. Defaults to the caller.
+    @return The quantity of tokens to withdraw.
+    """
+    return self._debtOutstanding(strategy)
+
+
+@view
+@internal
+def _creditAvailable(_name: type):
+    
+
+    
+
+
     
 
 
