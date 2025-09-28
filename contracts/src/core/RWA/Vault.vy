@@ -1788,6 +1788,40 @@ def _assessFees(strategy: address, gain: uint256) -> uint256:
         * self.strategies[strategy].performanceFee
         / MAX_BPS
     )
+    # NOTE: Unlikely to throw unless strategy reports >1e72 harvest profit
+    performance_fee: uint256 = gain * self.performanceFee / MAX_BPS
+
+    # NOTE: This must be called prior to taking new collateral,
+    #       or the calculation will be wrong!
+    # NOTE: This must be done at the same time, to ensure the relative
+    #       ratio of governance_fee : strategist_fee is kept intact
+    total_fee: uint256 = performance_fee + strategist_fee + management_fee
+    if total_fee > gain:
+        total_fee = gain  # Cap fees to gain
+    if total_fee > 0:  # NOTE: If mgmt fee is 0% and no gains were realized, skip
+        reward: uint256 = self._issueSharesForAmount(self, total_fee) # issue shares to cover fees
+
+        # Send the rewards out as new shares in this Vault
+        if strategist_fee > 0:
+            # NOTE: Unlikely to throw unless sqrt(reward) >>> 1e39
+            strategist_reward: uint256 = (
+                strategist_fee
+                * reward
+                / total_fee
+            )
+            self._transfer(self, strategy, strategist_reward)
+            # NOTE: Strategy distributes rewards at the end of harvest()
+        # NOTE: Governance earns any dust leftover from flooring math above
+        if self.balanceOf[self] > 0:
+            self._transfer(self, self.rewards, self.balanceOf[self])
+    log FeeReport(management_fee, performance_fee, strategist_fee, duration)
+    return total_fee
+
+    @external
+    def report(gain: uint256, loss: uint256, _debtPayment: uint256) -> uint256:
+    """
+
+
     
     
     
