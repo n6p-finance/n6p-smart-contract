@@ -1646,9 +1646,38 @@ def debtOutstanding(strategy: address = msg.sender) -> uint256:
 @view
 @internal
 def _creditAvailable(_name: type):
-    
+    # See note on `creditAvailable()`.
+    if self.emergencyShutdown:
+        return 0  # In emergency shutdown, no new credit is given to strategies
+    vault_totalAssets: uint256 = self._totalAssets()
+    vault_debtLimit: uint256 = (self.debtRatio * vault_totalAssets) / MAX_BPS
+    vault_totalDebt: uint256 = self.totalDebt
+    strategy_debtLimit: uint256 = self.strategies[strategy].debtRatio * vault_totalAssets / MAX_BPS
+    strategy_totalDebt: uint256 = self.strategies[strategy].totalDebt
+    strategy_minDebtPerHarvest: uint256 = self.strategies[strategy].minDebtPerHarvest # minimum debt that the strategy can have after harvest
+    strategy_maxDebtPerHarvest: uint256 = self.strategies[strategy].maxDebtPerHarvest # maximum debt that the strategy can have after harvest
 
+    # -------------------------------------------------
+    # NOTE: - Strategy’s personal credit limit (debtRatio).
+    #       - Vault’s global credit limit (system-wide cap).
+    #       - Actual idle tokens available (physical liquidity in vault).
+    # -------------------------------------------------
     
+    # NOTE: Exhausted credit line is already at or above its limit so cant borrow more
+    if strategy_debtLimit <= strategy_totalDebt or vault_debtLimit <= vault_totalDebt:
+        return 0 
+    
+    # Strat with debt limit left for the strategy
+    available: uint256 = strategy_debtLimit - strategy_totalDebt
+
+    # Adjust by the global debt limit left
+    available = min(available, vault_debtLimit - vault_totalDebt)
+
+    # Can only borrow up to what the contract has in reserve
+    # NOTE: Running near 100% is discouraged
+    available = min(available, self.totalIdle)
+
+
 
 
     
