@@ -1662,7 +1662,7 @@ def _creditAvailable(_name: type):
     #       - Vault’s global credit limit (system-wide cap).
     #       - Actual idle tokens available (physical liquidity in vault).
     # -------------------------------------------------
-    
+
     # NOTE: Exhausted credit line is already at or above its limit so cant borrow more
     if strategy_debtLimit <= strategy_totalDebt or vault_debtLimit <= vault_totalDebt:
         return 0 
@@ -1677,9 +1677,47 @@ def _creditAvailable(_name: type):
     # NOTE: Running near 100% is discouraged
     available = min(available, self.totalIdle)
 
+    # Adjust by min and max borrow limits (per harvest)
+    # NOTE: min increase can be used to ensure that if a strategy has a minimum
+    #       amount of capital needed to purchase a position, it's not given capital
+    #       it can't make use of yet.
+    # NOTE: max increase is used to make sure each harvest isn't bigger than what
+    #       is authorized. This combined with adjusting min and max periods in
+    #       `BaseStrategy` can be used to effect a "rate limit" on capital increase.
+    if available < strategy_minDebtPerHarvest:
+        return 0
+    else:
+        return min(available, strategy_maxDebtPerHarvest)
 
 
+@view
+@external
+def creditAvailable(strategy: address = msg.sender) -> uint256:
+    """
+    @notice
+        Amount of tokens in Vault a Strategy has access to as a credit line.
 
+        This will check the Strategy's debt limit, as well as the tokens
+        available in the Vault, and determine the maximum amount of tokens
+        (if any) the Strategy may draw on.
+
+        In the rare case the Vault is in emergency shutdown this will return 0.
+    @param strategy The Strategy to check. Defaults to caller.
+    @return The quantity of tokens available for the Strategy to draw on.
+    """
+    return self._creditAvailable(strategy)
+
+
+@view
+@internal
+def _expectedReturn(strategy: address) -> uint256:
+    # See note on `expectedReturn()`.
+    strategy_lastReport: uint256 = self.strategies[strategy].lastReport
+    timeSinceLastHarvest: uint256 = block.timestamp - strategy_lastReport
+    totalHarvest: uint256 = strategy_lastReport - self.strategies[strategy].activation
+
+    # NOTE: If either `timeSinceLastHarvest` or `totalHarvestTime` is 0, we can short-circuit to `0`
+    
     
 
 
