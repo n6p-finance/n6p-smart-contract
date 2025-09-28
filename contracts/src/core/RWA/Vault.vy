@@ -1712,13 +1712,54 @@ def creditAvailable(strategy: address = msg.sender) -> uint256:
 @internal
 def _expectedReturn(strategy: address) -> uint256:
     # See note on `expectedReturn()`.
+    # NOTE: “Given the average rate of return in the past, how much profit should we expect right now if we harvested this second?”
     strategy_lastReport: uint256 = self.strategies[strategy].lastReport
     timeSinceLastHarvest: uint256 = block.timestamp - strategy_lastReport
     totalHarvest: uint256 = strategy_lastReport - self.strategies[strategy].activation
 
     # NOTE: If either `timeSinceLastHarvest` or `totalHarvestTime` is 0, we can short-circuit to `0`
+    if timeSinceLastHavest > 0 and totalHarvest > 0 and Strategy(strategy).isActive():
+        # NOTE: Unlikely to throw unless strategy accumalates >1e68 returns
+        # NOTE: Calculate average over period of time where harvests have occured in the past
+        return (
+            self.strategies[strategy].totalGain
+            * timeSinceLastHarvest
+            / totalHarvest
+        )
+    else:
+        return 0 # Covers the scenario when block.timestamp == activation
+
     
+@view
+@external
+def availableDepositLimit() -> uint256:
+    if self.depositLimit > self._totalAssets():
+        return self.depositLimit - self._totalAssets()
+    else:
+        return 0``
     
+
+
+@view
+@external
+def expectedReturn(strategy: address = msg.sender) -> uint256:
+    """
+    @notice
+        Provide an accurate expected value for the return this `strategy`
+        would provide to the Vault the next time `report()` is called
+        (since the last time it was called).
+    @param strategy The Strategy to determine the expected return for. Defaults to caller.
+    @return
+        The anticipated amount `strategy` should make on its investment
+        since its last report.
+    """
+    return self._expectedReturn(strategy)
+    
+
+@internal
+def _assessFees(strategy: address, gain: uint256) -> uint256:
+    
+
 
 
 

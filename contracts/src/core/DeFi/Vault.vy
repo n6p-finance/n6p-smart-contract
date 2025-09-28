@@ -846,6 +846,7 @@ def _calculateLockedProfit() -> uint256:
     else:        
         return 0
 
+
 @view
 @internal
 def _freeFunds() -> uint256:
