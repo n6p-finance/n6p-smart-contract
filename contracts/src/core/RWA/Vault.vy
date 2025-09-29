@@ -57,7 +57,7 @@ token: public(ERC20)
 governance: public(address)
 management: public(address)
 guardian: public(address)
-# Artist address, can be a multisig wallet
+# NOTE: Artist address, can be a multisig wallet
 artist: public(address)
 pendingGovernance: address
 
@@ -123,6 +123,7 @@ event FeeReport:
     management_fee: uint256
     performance_fee: uint256
     strategist_fee: uint256
+    artist_fees: uint256 # fees sent to the artist
     duration: uint256
 
 event WithdrawFromStrategy:
@@ -262,6 +263,7 @@ def initialize(
     symbolOverride: String[32], # the symbol of the vault
     guardian: address = msg.sender, # the address that is the guardian of the vault
     management: address = msg.sender, # the address that is the management of the vault
+    artist: address = msg.sender, # the address that is the artist of the vault
     rewards: address, # the address that is the rewards of the vault
 ):
     """
@@ -297,6 +299,10 @@ def initialize(
         self.symbol = concat("nv", DetailedERC20(token).symbol())
     else:
         self.symbol = symbolOverride
+    if artistOverride == "":
+        self.name = concat(DetailedERC20(token).symbol(), " nArtist")
+    else:
+        self.name = artistOverride
     decimals: uint256 = DetailedERC20(token).decimals() # this is the decimals of the token
     self.decimals = decimals
     assert decimals < 256 # dev: see VVE-2020-0001? why is this here?
@@ -308,6 +314,8 @@ def initialize(
     log UpdateRewards(rewards)
     self.guardian = guardian
     log UpdateGuardian(guardian)
+    self.artist = artist
+    log UpdateArtist(artist)
     self.performanceFee = 1000  # 10% of yield (per Strategy)
     log UpdatePerformanceFee(convert(1000, uint256))
     self.managementFee = 200  # 2% per year
@@ -1869,9 +1877,81 @@ def report(gain: uint256, loss: uint256, _debtPayment: uint256) -> uint256:
     # Assess both management and performance fees, based on shares vault
     totalFees: uint256 = self._assessFees(msg.sender, gain)
 
+    # Returns are always "realized gains"
+    self.strategies[msg.sender].totalGain += gain # the total gain the strategy has made over its lifetime
 
+    # Compute the line of credit the Vault is able to offer the strategy (if any)
+    credit: uint256 = self._creditAvailable(msg.sender)
+
+    # Outstanding debt the Strategy wants to take back from the Vault (if any)
+    # NOTE: debtOutstanding <= StrategyParams.totalDebt
+    debt: uint256 = self._debtOutstanding(msg.sender)
+    debtPayment: uint256 = min(debt, _debtPayment) # can't pay more than the debt
+
+    if debtPayment > 0:
+        self.strategies[msg.sender].totalDebt -= debtPayment # reduce the strategy's total debt by the amount paid
+        self.totalDebt -= debtPayment # reduce the vault's total debt by the amount paid
+        debt -= debtPayment # reduce the outstanding debt by the amount paid
+        # NOTE: `debt` is being tracked for later
+
+    # Update the actual debt based on the full credit we are extending to the Strategy
+    # or the returns if we are taking funds back
+    # NOTE: credit + self.strategies[msg.sender].totalDebt is always < self.debtLimit
+    # NOTE: At least one of `credit` or `debt` is always 0 (both can be 0)
+    if credit > 0:
+        self.strategies[msg.sender].totalDebt += credit
+        self.totalDebt += credit
+        # NOTE: We don't need to check for overflow above because totalDebt is
+        #       capped by debtRatio of MAX_BPS, which is applied to totalAssets()
+        #       which is capped by the max uint256.
     
-    
+    # Give/take balance to Strategy, based on the difference between the reported gains
+    # (if any), the debt payment (if any), the credit increase we are offering (if any),
+    # and the debt needed to be paid off (if any)
+    # NOTE: This is just used to adjust the balance of tokens between the Strategy and
+    #       the Vault based on the Strategy's debt limit (as well as the Vault's).
+    totalAvail: uint256 = gain + debtPayment
+    if totalAvail < credit:
+        self.totalIdle -= credit - totalAvail # reduce idle by the amount we are giving to the strategy
+        self.erc20_safe_transfer(self.token.address, msg.sender, credit - totalAvail)
+    elif totalAvail > credit:
+        # NOTE: We don't need to check for underflow here because we checked that
+        #       totalAvail <= self.token.balanceOf(msg.sender) at the start of the function
+        self.totalIdle += totalAvail - credit # increase idle by the amount we are taking from the strategy
+        self.erc20_safe_transferFrom(self.token.address, msg.sender, self, totalAvail - credit)
+    # else, don't do anything because it is balanced
+
+    # Profit is locked and gradually released per block
+    # NOTE: compute current locked profit and replace with sum of current and new
+    lockedProfitBeforeLoss: uint256 = self._calculateLockedProfit() + gain - totalFees
+    if lockedProfitBeforeLoss > loss: 
+        self.lockedProfit = lockedProfitBeforeLoss - loss
+    else:
+        self.lockedProfit = 0
+
+    # Update reporting time
+    self.strategies[msg.sender].lastReport = block.timestamp
+    self.lastReport = block.timestamp
+
+    log StrategyReported(
+        msg.sender,
+        gain,
+        loss,
+        debtPayment,
+        self.strategies[msg.sender].totalGain,
+        self.strategies[msg.sender].totalLoss,
+        self.strategies[msg.sender].totalDebt,
+        credit,
+        self.strategies[msg.sender].debtRatio,
+    )
+
+    if self.strategies[msg.sender].debtRatio == 0 or self.emergencyShutdown:
+        # Take every last penny the Strategy has (Emergency Exit/revokeStrategy)
+        # NOTE: This is different than `debt` in order to extract *all* of the returns
+        return Strategy(msg.sender).estimatedTotalAssets()
+    else:
+        # Otherwise, just return what we have as debt outstanding
+        return debt
 
 
 
