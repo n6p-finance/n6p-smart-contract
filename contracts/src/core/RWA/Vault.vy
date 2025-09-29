@@ -1954,7 +1954,34 @@ def report(gain: uint256, loss: uint256, _debtPayment: uint256) -> uint256:
         return debt
 
 
+@external
+def sweep(token: address, amount: uint256 = MAX_UINT256):
+    """
+    @notice
+        Removes tokens from this Vault that are not the type of token managed
+        by this Vault. This may be used in case of accidentally sending the
+        wrong kind of token to this Vault.
 
+        Tokens will be sent to `governance`.
+
+        This will fail if an attempt is made to sweep the tokens that this
+        Vault manages.
+
+        This may only be called by governance.
+    @param token The token to transfer out of this vault.
+    @param amount The quantity or tokenId to transfer out.
+    """
+    assert msg.sender == self.governance, "Only governance" # dev: only governance
+    # Can't sweep the token the vault is working with\
+    value: uint256 = amount
+    if value == MAX_UINT256:
+        value = ERC20(token).balanceOf(self)
+
+    if token == self.token.address:
+        value = self.token.balanceOf(self) - self.totalIdle
+
+    log Sweep(token, value)
+    safe.erc20_safe_transfer(token, self.governance, value)
 
 
     
