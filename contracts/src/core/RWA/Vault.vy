@@ -57,6 +57,8 @@ token: public(ERC20)
 governance: public(address)
 management: public(address)
 guardian: public(address)
+# Artist address, can be a multisig wallet
+artist: public(address)
 pendingGovernance: address
 
 struct StrategyParams:
@@ -154,6 +156,8 @@ event UpdateManagementFee:
 event UpdateGuardian:
     guardian: address # Address of the active guardian
 
+event UpdateArtist:
+    artist: address # Address of the active artist
 
 event EmergencyShutdown:
     active: bool # New emergency shutdown state (if false, normal operation enabled)
@@ -1817,9 +1821,60 @@ def _assessFees(strategy: address, gain: uint256) -> uint256:
     log FeeReport(management_fee, performance_fee, strategist_fee, duration)
     return total_fee
 
-    @external
-    def report(gain: uint256, loss: uint256, _debtPayment: uint256) -> uint256:
+@external
+def report(gain: uint256, loss: uint256, _debtPayment: uint256) -> uint256:
     """
+    @notice
+        Reports the amount of assets the calling Strategy has free (usually in
+        terms of ROI).
+
+        The performance fee is determined here, off of the strategy's profits
+        (if any), and sent to governance.
+
+        The strategist's fee is also determined here (off of profits), to be
+        handled according to the strategist on the next harvest.
+
+        This may only be called by a Strategy managed by this Vault.
+    @dev
+        For approved strategies, this is the most efficient behavior.
+        The Strategy reports back what it has free, then Vault "decides"
+        whether to take some back or give it more. Note that the most it can
+        take is `gain + _debtPayment`, and the most it can give is all of the
+        remaining reserves. Anything outside of those bounds is abnormal behavior.
+
+        All approved strategies must have increased diligence around
+        calling this function, as abnormal behavior could become catastrophic.
+    @param gain
+        Amount Strategy has realized as a gain on it's investment since its
+        last report, and is free to be given back to Vault as earnings
+    @param loss
+        Amount Strategy has realized as a loss on it's investment since its
+        last report, and should be accounted for on the Vault's balance sheet.
+        The loss will reduce the debtRatio. The next time the strategy will harvest,
+        it will pay back the debt in an attempt to adjust to the new debt limit.
+    @param _debtPayment
+        Amount Strategy has made available to cover outstanding debt
+    @return Amount of debt outstanding (if totalDebt > debtLimit or emergency shutdown).
+    """
+
+    # Only approved strategies can call this function
+    assert self.strategies[msg.sender].activation > 0, "Strategy not active"
+    # No lying about total availablle to withdrawl
+    assert self.token.balanceOf(msg.sender) >= gain + _debtPayment, "Insufficient balance to cover report"
+    
+    # Report a loss
+    if loss > 0:
+        self._reportLoss(msg.sender, loss) # based on loss in user withdrawal
+
+    # Assess both management and performance fees, based on shares vault
+    totalFees: uint256 = self._assessFees(msg.sender, gain)
+
+
+    
+    
+
+
+
 
 
     
