@@ -123,7 +123,7 @@ event FeeReport:
     management_fee: uint256
     performance_fee: uint256
     strategist_fee: uint256
-    artist_fees: uint256 # fees sent to the artist
+    artist_fee: uint256 # fees sent to the artist
     duration: uint256
 
 event WithdrawFromStrategy:
