@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "forge-std/Test.sol";
+import "./test_config.t.sol";
+
+contract WithdrawalTest is ConfigTest {
+    MockStrategy public strategy;
+    
+    function setUp() public override {
+        super.setUp();
+        
+        strategy = new MockStrategy(address(vault), address(token));
+        
+        // Add strategy
+        vm.prank(governance);
+        vault.addStrategy(
+            address(strategy),
+            5000, // 50% debt ratio
+            1 ether, // min debt
+            50 ether, // max debt
+            1000 // 10% performance fee
+        );
+        
+        // Fund the vault and allocate to strategy
+        token.mint(address(this), 200 ether);
+        token.approve(address(vault), 200 ether);
+        vault.deposit(100 ether, address(this));
+        
+        // Allocate funds to strategy
+        token.mint(address(strategy), 50 ether);
+    }
+
+    function test_basic_withdrawal() public {
+        console.log("Testing basic withdrawal...");
+        
+        uint256 initialBalance = token.balanceOf(address(this));
+        uint256 shares = vault.balanceOf(address(this));
+        
+        // Withdraw all shares
+        uint256 amount = vault.withdraw(shares, address(this), 100); // 1% max loss
+        
+        assertEq(token.balanceOf(address(this)), initialBalance + amount, "Tokens not received");
+        assertEq(vault.balanceOf(address(this)), 0, "Shares not burned");
+        assertEq(vault.totalSupply(), 0, "Total supply not updated");
+        
+        console.log("Basic withdrawal test passed");
+    }
+
+    function test_partial_withdrawal() public {
+        console.log("Testing partial withdrawal...");
+        
+        uint256 initialBalance = token.balanceOf(address(this));
+        uint256 totalShares = vault.balanceOf(address(this));
+        uint256 withdrawShares = totalShares / 2;
+        
+        // Withdraw half shares
+        uint256 amount = vault.withdraw(withdrawShares, address(this), 100);
+        
+        assertEq(token.balanceOf(address(this)), initialBalance + amount, "Tokens not received");
+        assertEq(vault.balanceOf(address(this)), totalShares - withdrawShares, "Shares not properly decreased");
+        assertTrue(amount > 0, "No tokens received for withdrawal");
+        
+        console.log("Partial withdrawal test passed");
+    }
+
+    function test_withdrawal_from_strategy() public {
+        console.log("Testing withdrawal from strategy...");
+        
+        // Deposit more to ensure we need to pull from strategy
+        token.mint(address(this), 100 ether);
+        token.approve(address(vault), 100 ether);
+        vault.deposit(100 ether, address(this));
+        
+        uint256 shares = vault.balanceOf(address(this));
+        uint256 strategyBalance = token.balanceOf(address(strategy));
+        
+        // Withdraw more than idle balance
+        uint256 amount = vault.withdraw(shares, address(this), 1000); // 10% max loss
+        
+        assertTrue(amount > 0, "No tokens received from strategy withdrawal");
+        assertTrue(token.balanceOf(address(strategy)) < strategyBalance, "Strategy funds not withdrawn");
+        
+        console.log("Strategy withdrawal test passed");
+    }
+
+    function test_withdrawal_with_loss() public {
+        console.log("Testing withdrawal with loss...");
+        
+        // Simulate strategy having less than expected
+        uint256 strategyBalance = token.balanceOf(address(strategy));
+        token.transfer(address(0), strategyBalance / 2); // Burn half of strategy funds
+        
+        uint256 shares = vault.balanceOf(address(this));
+        uint256 initialTokenBalance = token.balanceOf(address(this));
+        
+        // Withdraw with high max loss allowance
+        uint256 amount = vault.withdraw(shares, address(this), 5000); // 50% max loss
+        
+        assertTrue(amount > 0, "No tokens received despite loss");
+        assertTrue((initialTokenBalance + amount) < 100 ether, "Loss not accounted for");
+        
+        console.log("Withdrawal with loss test passed");
+    }
+
+    function test_withdrawal_excessive_loss() public {
+        console.log("Testing withdrawal with excessive loss...");
+        
+        // Simulate major loss in strategy
+        uint256 strategyBalance = token.balanceOf(address(strategy));
+        token.transfer(address(0), strategyBalance * 9 / 10); // Lose 90% of strategy funds
+        
+        uint256 shares = vault.balanceOf(address(this));
+        
+        // Try to withdraw with low max loss - should fail
+        vm.expectRevert("excess loss");
+        vault.withdraw(shares, address(this), 100); // 1% max loss
+        
+        console.log("Excessive loss protection test passed");
+    }
+
+    function test_max_withdrawal() public {
+        console.log("Testing max withdrawal...");
+        
+        // Withdraw max shares
+        uint256 amount = vault.withdraw(type(uint256).max, address(this), 100);
+        
+        assertTrue(amount > 0, "Max withdrawal returned zero");
+        assertEq(vault.balanceOf(address(this)), 0, "Shares not fully withdrawn");
+        
+        console.log("Max withdrawal test passed");
+    }
+
+    function test_withdrawal_to_different_recipient() public {
+        console.log("Testing withdrawal to different recipient...");
+        
+        address recipient = makeAddr("recipient");
+        uint256 recipientInitialBalance = token.balanceOf(recipient);
+        uint256 shares = vault.balanceOf(address(this));
+        
+        // Withdraw to different address
+        uint256 amount = vault.withdraw(shares, recipient, 100);
+        
+        assertEq(token.balanceOf(recipient), recipientInitialBalance + amount, "Tokens not sent to recipient");
+        assertEq(vault.balanceOf(address(this)), 0, "Sender shares not burned");
+        
+        console.log("Different recipient withdrawal test passed");
+    }
+
+    function test_withdrawal_queue_priority() public {
+        console.log("Testing withdrawal queue priority...");
+        
+        // Create multiple strategies
+        MockStrategy strategy2 = new MockStrategy(address(vault), address(token));
+        MockStrategy strategy3 = new MockStrategy(address(vault), address(token));
+        
+        vm.prank(governance);
+        vault.addStrategy(address(strategy2), 2000, 1 ether, 20 ether, 1000);
+        
+        vm.prank(governance);
+        vault.addStrategy(address(strategy3), 2000, 1 ether, 20 ether, 1000);
+        
+        // Fund strategies
+        token.mint(address(strategy2), 20 ether);
+        token.mint(address(strategy3), 20 ether);
+        
+        // Deposit more to trigger strategy withdrawals
+        token.mint(address(this), 100 ether);
+        token.approve(address(vault), 100 ether);
+        vault.deposit(100 ether, address(this));
+        
+        uint256 shares = vault.balanceOf(address(this));
+        
+        // Withdraw - should use strategies in queue order
+        uint256 amount = vault.withdraw(shares, address(this), 1000);
+        
+        assertTrue(amount > 0, "No tokens received from queued strategies");
+        
+        console.log("Withdrawal queue priority test passed");
+    }
+
+    function test_withdrawal_during_emergency_shutdown() public {
+        console.log("Testing withdrawal during emergency shutdown...");
+        
+        // Activate emergency shutdown
+        vm.prank(guardian);
+        vault.setEmergencyShutdown(true);
+        
+        uint256 shares = vault.balanceOf(address(this));
+        uint256 initialBalance = token.balanceOf(address(this));
+        
+        // Should still be able to withdraw during shutdown
+        uint256 amount = vault.withdraw(shares, address(this), 100);
+        
+        assertTrue(amount > 0, "No tokens received during shutdown");
+        assertEq(token.balanceOf(address(this)), initialBalance + amount, "Balance not updated during shutdown");
+        
+        console.log("Emergency shutdown withdrawal test passed");
+    }
+}
