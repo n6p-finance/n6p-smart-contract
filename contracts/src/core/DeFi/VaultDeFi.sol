@@ -230,7 +230,9 @@ contract Vault is ReentrancyGuard {
         require(degradation <= DEGRADATION_COEFFICIENT, "deg");
         lockedProfitDegradation = degradation; emit LockedProfitDegradationUpdated(degradation);
     }
-    function setDepositLimit(uint256 limit) external onlyGov { depositLimit = limit; emit UpdateDepositLimit(limit); }
+    function setDepositLimit(uint256 limit) external onlyGov { 
+        depositLimit = limit; 
+        emit UpdateDepositLimit(limit); }
     function setPerformanceFee(uint256 fee) external onlyGov { require(fee <= MAX_BPS/2, "fee"); performanceFee = fee; emit UpdatePerformanceFee(fee); }
     function setManagementFee(uint256 fee) external onlyGov { require(fee <= MAX_BPS, "fee"); managementFee = fee; emit UpdateManagementFee(fee); }
     function setGuardian(address _guardian) external { require(msg.sender == guardian || msg.sender == governance, "auth"); guardian = _guardian; emit UpdateGuardian(_guardian); }
