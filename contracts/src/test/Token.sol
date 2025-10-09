@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.15;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -16,13 +16,9 @@ contract Token is ERC20 {
         _blocked[user] = value;
     }
 
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal virtual override(ERC20) {
+    function _update(address from, address to, uint256 amount) internal virtual override {
         require(!_blocked[to], "Token transfer refused. Receiver is on blacklist");
-        super._beforeTokenTransfer(from, to, amount);
+        super._update(from, to, amount);
     }
 
     function decimals() public view virtual override returns (uint8) {

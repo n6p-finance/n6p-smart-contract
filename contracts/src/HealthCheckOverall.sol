@@ -12,6 +12,7 @@ interface CustomHealthCheck {
     ) external view returns (bool);
 }
 
+
 // LEGACY INTERFACES PRE 0.3.2
 struct LegacyStrategyParams {
     uint256 performanceFee;

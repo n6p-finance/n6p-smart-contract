@@ -13,6 +13,6 @@ interface IHealthCheck {
         uint256 loss,
         uint256 debtPayment,
         uint256 debtOutstanding,
-        uint256 totalDebt,
+        uint256 totalDebt
     ) external view returns (bool);
 }
