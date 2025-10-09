@@ -115,7 +115,7 @@ contract ConfigTest is Test {
         console.log("=== Test setup completed ===\n");
     }
 
-    function test_vault_deployment() public {
+    function test_vault_deployment() public virtual {
         console.log("=== Testing vault deployment ===");
         
         console.log("Checking addresses...");

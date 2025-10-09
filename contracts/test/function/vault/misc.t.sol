@@ -7,6 +7,10 @@ import "./config.t.sol";
 contract MiscTest is ConfigTest {
     function setUp() public override {
         super.setUp();
+        
+        // Set a reasonable deposit limit for all tests that need deposits
+        vm.prank(governance);
+        vault.setDepositLimit(1000 ether);
     }
 
     function test_api_adherence() public {
@@ -44,21 +48,38 @@ contract MiscTest is ConfigTest {
     function test_sweep_main_token_protection() public {
         console.log("Testing main token sweep protection...");
         
-        // Fund vault with main token
-        token.mint(address(vault), 10 ether);
+        // First deposit some funds to create shares and establish idle funds
+        token.mint(address(this), 10 ether);
+        token.approve(address(vault), 10 ether);
+        vault.deposit(10 ether, address(this));
+        
+        // Then send additional tokens directly to vault (these should be sweepable)
+        token.mint(address(vault), 5 ether);
+        
+        uint256 vaultBalanceBefore = token.balanceOf(address(vault));
+        uint256 governanceBalanceBefore = token.balanceOf(governance);
         
         // Try to sweep main token - should only sweep excess over idle
         vm.prank(governance);
         vault.sweep(address(token), type(uint256).max);
         
-        // Vault should still have idle funds
-        assertTrue(token.balanceOf(address(vault)) > 0, "Main token idle funds swept");
+        uint256 vaultBalanceAfter = token.balanceOf(address(vault));
+        uint256 governanceBalanceAfter = token.balanceOf(governance);
+        
+        // Vault should still have the original deposited amount (idle funds)
+        // Only the excess 5 ether should be swept
+        assertTrue(vaultBalanceAfter >= 10 ether, "Main token idle funds were swept");
+        assertEq(governanceBalanceAfter, governanceBalanceBefore + 5 ether, "Swept amount incorrect");
         
         console.log("Main token sweep protection test passed");
     }
 
     function test_available_deposit_limit() public {
         console.log("Testing available deposit limit...");
+        
+        // Reset deposit limit for this specific test
+        vm.prank(governance);
+        vault.setDepositLimit(0);
         
         // Initially no deposit limit set
         assertEq(vault.availableDepositLimit(), 0, "Available limit should be 0 when no limit set");
@@ -82,7 +103,7 @@ contract MiscTest is ConfigTest {
     function test_max_available_shares() public {
         console.log("Testing max available shares calculation...");
         
-        // Initially no shares available
+        // Initially no shares available (no deposits yet)
         assertEq(vault.maxAvailableShares(), 0, "Max shares should be 0 with no funds");
         
         // Deposit funds
@@ -152,6 +173,7 @@ contract MiscTest is ConfigTest {
         
         // Should not be able to deposit during shutdown
         token.mint(address(this), 10 ether);
+        token.approve(address(vault), 10 ether);
         vm.expectRevert("shutdown");
         vault.deposit(10 ether, address(this));
         
