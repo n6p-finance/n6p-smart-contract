@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT 
+// SPDX-License-Identifier: MIT OR AGPL-3.0
 pragma solidity ^0.8.20;
 
 // Minimal ERC-4626 interface (read/write) for local usage

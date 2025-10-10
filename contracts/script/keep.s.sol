@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0
+// SPDX-License-Identifier: MIT OR AGPL-3.0
 pragma solidity ^0.8.20;
 
 // Solidity analogue of scripts/keep.py. It executes harvest/tend for a set of strategies

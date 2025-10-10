@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT 
+// SPDX-License-Identifier: MIT OR AGPL-3.0
 pragma solidity >=0.5.0;
 
 interface IERC7540Operator {
