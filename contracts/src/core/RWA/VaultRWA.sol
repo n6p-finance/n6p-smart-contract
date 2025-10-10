@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0
+// SPDX-License-Identifier: MIT 
 pragma solidity ^0.8.20;
 
 /**
@@ -230,7 +230,9 @@ contract Vault is ReentrancyGuard {
         require(degradation <= DEGRADATION_COEFFICIENT, "deg");
         lockedProfitDegradation = degradation; emit LockedProfitDegradationUpdated(degradation);
     }
-    function setDepositLimit(uint256 limit) external onlyGov { depositLimit = limit; emit UpdateDepositLimit(limit); }
+    function setDepositLimit(uint256 limit) external onlyGov { 
+        depositLimit = limit; 
+        emit UpdateDepositLimit(limit); }
     function setPerformanceFee(uint256 fee) external onlyGov { require(fee <= MAX_BPS/2, "fee"); performanceFee = fee; emit UpdatePerformanceFee(fee); }
     function setManagementFee(uint256 fee) external onlyGov { require(fee <= MAX_BPS, "fee"); managementFee = fee; emit UpdateManagementFee(fee); }
     function setGuardian(address _guardian) external { require(msg.sender == guardian || msg.sender == governance, "auth"); guardian = _guardian; emit UpdateGuardian(_guardian); }
@@ -365,13 +367,24 @@ contract Vault is ReentrancyGuard {
         emit Transfer(address(0), to, shares);
     }
 
+    // NOTE: This is internal function so if we want to test it we want to make a wrapper
     function _shareValue(uint256 shares) internal view returns (uint256) {
         if (totalSupply == 0) return shares;
         return (shares * _freeFunds()) / totalSupply;
     }
+
+    function _shareValuePublic_(uint256 shares) external view returns (uint256) {
+        return _shareValue(shares);
+    }
+
+    // NOTE: This is internal function so if we want to test it we want to make a wrapper
     function _sharesForAmount(uint256 amount) internal view returns (uint256) {
         uint256 ff = _freeFunds();
         if (ff > 0) return (amount * totalSupply) / ff; else return 0;
+    }
+
+    function _sharesForAmountPublic_(uint256 amount) external view returns (uint256) {
+        return _sharesForAmount(amount);
     }
 
     function maxAvailableShares() external view returns (uint256) {
@@ -395,7 +408,9 @@ contract Vault is ReentrancyGuard {
             uint256 maxDep = depositLimit > _totalAssets() ? (depositLimit - _totalAssets()) : 0;
             amount = MathLib.min(maxDep, IERC20(token).balanceOf(msg.sender));
         } else {
-            require(_totalAssets() + amount <= depositLimit, "limit");
+            if (depositLimit > 0) {
+                require(_totalAssets() + amount <= depositLimit, "limit");
+            }
         }
         require(amount > 0, "amount");
 
@@ -452,6 +467,7 @@ contract Vault is ReentrancyGuard {
         return value;
     }
 
+    // Price per shares
     function pricePerShare() external view returns (uint256) { return _shareValue(10 ** decimals); }
 
     // Queue organize helper
@@ -668,6 +684,8 @@ contract Vault is ReentrancyGuard {
 
     function availableDepositLimit() external view returns (uint256) { return depositLimit > _totalAssets() ? depositLimit - _totalAssets() : 0; }
 
+    // The sweep() function lets the vault governance recover (sweep out) unexpected or leftover tokens that
+    //             shouldn’t be in the vault — but protects the main vault asset.
     function sweep(address _token, uint256 amount) external onlyGov {
         uint256 value = amount;
         if (value == MAX_UINT256) { value = IERC20(_token).balanceOf(address(this)); }
