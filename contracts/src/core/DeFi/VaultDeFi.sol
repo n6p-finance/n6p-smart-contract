@@ -367,13 +367,24 @@ contract Vault is ReentrancyGuard {
         emit Transfer(address(0), to, shares);
     }
 
+    // NOTE: This is internal function so if we want to test it we want to make a wrapper
     function _shareValue(uint256 shares) internal view returns (uint256) {
         if (totalSupply == 0) return shares;
         return (shares * _freeFunds()) / totalSupply;
     }
+
+    function _shareValuePublic_(uint256 shares) external view returns (uint256) {
+        return _shareValue(shares);
+    }
+
+    // NOTE: This is internal function so if we want to test it we want to make a wrapper
     function _sharesForAmount(uint256 amount) internal view returns (uint256) {
         uint256 ff = _freeFunds();
         if (ff > 0) return (amount * totalSupply) / ff; else return 0;
+    }
+
+    function _sharesForAmountPublic_(uint256 amount) external view returns (uint256) {
+        return _sharesForAmount(amount);
     }
 
     function maxAvailableShares() external view returns (uint256) {

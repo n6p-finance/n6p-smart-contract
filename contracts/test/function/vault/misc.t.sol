@@ -13,7 +13,7 @@ contract MiscTest is ConfigTest {
         vault.setDepositLimit(1000 ether);
     }
 
-    function test_api_adherence() public {
+    function test_api_adherence() public virtual {
         console.log("Testing API adherence...");
         
         // Check that the vault implements the expected API version
@@ -150,7 +150,7 @@ contract MiscTest is ConfigTest {
         console.log("Total assets calculation test passed");
     }
 
-    function test_locked_profit_calculation() public {
+    function test_locked_profit_calculation() public virtual {
         console.log("Testing locked profit calculation...");
         
         // Initially no locked profit

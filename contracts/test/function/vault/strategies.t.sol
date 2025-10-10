@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import "./test_config.t.sol";
+import "./config.t.sol";
 
 contract StrategiesTest is ConfigTest {
     MockStrategy public strategy;

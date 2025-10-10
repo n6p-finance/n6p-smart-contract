@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import "./test_config.t.sol";
+import "./config.t.sol";
 
 contract SharesTest is ConfigTest {
     function setUp() public override {
@@ -20,6 +20,7 @@ contract SharesTest is ConfigTest {
         token.approve(address(vault), 100 ether);
         uint256 shares = vault.deposit(100 ether, address(this));
         
+        // Shares increases
         assertEq(vault.totalSupply(), initialSupply + shares, "Total supply not increased");
         assertEq(vault.balanceOf(address(this)), initialBalance + shares, "Balance not increased");
         assertTrue(shares > 0, "No shares issued for deposit");
@@ -110,7 +111,7 @@ contract SharesTest is ConfigTest {
         assertEq(vault.pricePerShare(), 10 ** vault.decimals(), "Share value changed without gains");
         
         // Calculate share value manually
-        uint256 calculatedValue = vault._shareValue(shares);
+        uint256 calculatedValue = vault._shareValuePublic_(shares);
         assertEq(calculatedValue, 100 ether, "Share value calculation incorrect");
         
         console.log("Share value calculation test passed");
@@ -126,7 +127,7 @@ contract SharesTest is ConfigTest {
         
         // Calculate shares for a specific amount
         uint256 testAmount = 50 ether;
-        uint256 expectedShares = vault._sharesForAmount(testAmount);
+        uint256 expectedShares = vault._sharesForAmountPublic_(testAmount);
         
         assertTrue(expectedShares > 0, "Should get shares for positive amount");
         
@@ -140,7 +141,7 @@ contract SharesTest is ConfigTest {
         token.approve(address(vault), 100 ether);
         
         // Should not issue zero shares
-        vm.expectRevert("shares");
+        vm.expectRevert("amount");
         vault.deposit(0, address(this));
         
         console.log("Zero share issuance protection test passed");
