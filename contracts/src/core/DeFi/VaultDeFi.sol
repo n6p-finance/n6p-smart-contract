@@ -397,7 +397,9 @@ contract Vault is ReentrancyGuard {
             uint256 maxDep = depositLimit > _totalAssets() ? (depositLimit - _totalAssets()) : 0;
             amount = MathLib.min(maxDep, IERC20(token).balanceOf(msg.sender));
         } else {
-            require(_totalAssets() + amount <= depositLimit, "limit");
+            if (depositLimit > 0) {
+                require(_totalAssets() + amount <= depositLimit, "limit");
+            }
         }
         require(amount > 0, "amount");
 

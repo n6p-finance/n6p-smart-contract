@@ -45,6 +45,7 @@ contract MockStrategy {
     bool public emergencyExit = false;
     uint256 public delegatedAssets = 0;
 
+
     constructor(address _vault, address _token) {
         vault = _vault;
         want = _token;

@@ -8,7 +8,7 @@ contract PermitTest is ConfigTest {
     using stdStorage for StdStorage;
 
     function setUp() public override {
-        super.setUp();
+        super.setUp(); // from config.t.sol
     }
 
     function test_permit_functionality() public {
@@ -24,10 +24,10 @@ contract PermitTest is ConfigTest {
         vm.prank(owner);
         token.approve(address(vault), 100 ether);
         vm.prank(owner);
-        vault.deposit(100 ether, owner);
+        vault.deposit(50 ether, owner);
         
         uint256 value = 50 ether;
-        uint256 deadline = block.timestamp + 1 days;
+        uint256 deadline = block.timestamp + 1 days; // before deadline 
         
         // Get current nonce
         uint256 nonce = vault.nonces(owner);
@@ -71,7 +71,7 @@ contract PermitTest is ConfigTest {
         
         uint256 value = 50 ether;
         uint256 deadline = block.timestamp - 1; // Expired deadline
-        
+        // this will return block.timestamp > deadline which it will fail
         bytes memory signature = new bytes(65);
         
         vm.expectRevert("expired");
@@ -117,7 +117,7 @@ contract PermitTest is ConfigTest {
         
         bytes32 domainSeparator = vault.DOMAIN_SEPARATOR();
         
-        // Should match manual calculation
+        // Should match epected manual calculation
         bytes32 expectedSeparator = keccak256(
             abi.encode(
                 vault.DOMAIN_TYPE_HASH(),
