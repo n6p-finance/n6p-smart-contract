@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import "./test_config.t.sol";
+import "./config.t.sol";
 
 contract PermitTest is ConfigTest {
     using stdStorage for StdStorage;
@@ -92,7 +92,7 @@ contract PermitTest is ConfigTest {
         // Invalid signature
         bytes memory signature = hex"1234";
         
-        vm.expectRevert("sig");
+        vm.expectRevert(bytes("siglen"));
         vault.permit(owner, spender, value, deadline, signature);
         
         console.log("Invalid signature test passed");
@@ -112,7 +112,7 @@ contract PermitTest is ConfigTest {
         console.log("Zero owner permit test passed");
     }
 
-    function test_domain_separator() public {
+    function test_domain_separator() public virtual {
         console.log("Testing domain separator calculation...");
         
         bytes32 domainSeparator = vault.DOMAIN_SEPARATOR();
@@ -133,7 +133,7 @@ contract PermitTest is ConfigTest {
         console.log("Domain separator test passed");
     }
 
-    function test_permit_type_hash() public {
+    function test_permit_type_hash() public virtual {
         console.log("Testing permit type hash...");
         
         bytes32 expectedTypeHash = keccak256(

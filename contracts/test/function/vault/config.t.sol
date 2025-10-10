@@ -111,16 +111,13 @@ contract ConfigTest is Test {
             guardian,
             management
         );
-
-        // Set deposit limit to allow test deposit
         console.log("Vault initialized successfully");
         console.log("=== Test setup completed ===\n");
     }
 
     function test_vault_deployment() public virtual {
         console.log("=== Testing vault deployment ===");
-        vm.prank(governance);
-        vault.setDepositLimit(0);
+        
         console.log("Checking addresses...");
         // Addresses
         assertEq(vault.governance(), governance, "Governance address mismatch");
@@ -210,9 +207,8 @@ contract ConfigTest is Test {
             guardian,
             management
         );
-        // Send 1 ETH to the vault for gas
-        vm.deal(address(vault), 1 ether);
-        console.log(" Vault correctly prevented reinitialization"); 
+        console.log(" Vault correctly prevented reinitialization");
+        
         console.log("=== Vault reinitialization protection test passed ===\n");
     }
 
@@ -304,6 +300,8 @@ contract ConfigTest is Test {
         vault.acceptGovernance();
         console.log(" Non-pending governance correctly blocked from accepting");
         
+
+        // NOTE: Acceptgovernance()
         console.log("New governance accepting role...");
         vm.prank(newGovernance);
         vault.acceptGovernance();

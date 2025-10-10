@@ -454,6 +454,7 @@ contract Vault is ReentrancyGuard {
         return value;
     }
 
+    // Price per shares
     function pricePerShare() external view returns (uint256) { return _shareValue(10 ** decimals); }
 
     // Queue organize helper
@@ -670,6 +671,8 @@ contract Vault is ReentrancyGuard {
 
     function availableDepositLimit() external view returns (uint256) { return depositLimit > _totalAssets() ? depositLimit - _totalAssets() : 0; }
 
+    // The sweep() function lets the vault governance recover (sweep out) unexpected or leftover tokens that
+    //             shouldn’t be in the vault — but protects the main vault asset.
     function sweep(address _token, uint256 amount) external onlyGov {
         uint256 value = amount;
         if (value == MAX_UINT256) { value = IERC20(_token).balanceOf(address(this)); }
