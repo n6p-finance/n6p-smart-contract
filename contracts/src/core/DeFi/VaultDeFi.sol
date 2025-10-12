@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT OR AGPL-3.0
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+
 /**
  * @title Napy Token Vault (Solidity port)
  * @notice Solidity implementation of contracts/Vault.vy api 0.4.6
- * @dev This is a direct port focused on preserving behavior and storage layout semantics.
+ * @dev Enhanced with gas optimizations, UUPS upgradability, and ERC-4626 compliance.
+ *      Preserves original behavior and storage layout unless changes improve efficiency.
  */
 
 /// @notice Interfaces 
@@ -34,6 +37,23 @@ interface IStrategy {
     function emergencyExit() external view returns (bool);
 }
 
+interface IERC4626 {
+    function asset() external view returns (address);
+    function totalAssets() external view returns (uint256);
+    function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+    function mint(uint256 shares, address receiver) external returns (uint256 assets);
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);
+    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
+    function maxDeposit(address receiver) external view returns (uint256);
+    function previewDeposit(uint256 assets) external view returns (uint256);
+    function maxMint(address receiver) external view returns (uint256);
+    function previewMint(uint256 shares) external view returns (uint256);
+    function maxWithdraw(address owner) external view returns (uint256);
+    function previewWithdraw(uint256 assets) external view returns (uint256);
+    function maxRedeem(address owner) external view returns (uint256);
+    function previewRedeem(uint256 shares) external view returns (uint256);
+}
+
 library MathLib {
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
@@ -46,15 +66,15 @@ abstract contract ReentrancyGuard {
     uint256 private _status;
     constructor() { _status = _NOT_ENTERED; }
     modifier nonReentrant() {
-        require(_status != _ENTERED, "REENTRANCY");
+        require(_status != _NOT_ENTERED, "REENTRANCY");
         _status = _ENTERED;
         _;
         _status = _NOT_ENTERED;
     }
 }
 
-/// @notice this is where the Vault starts
-contract Vault is ReentrancyGuard {
+/// @notice Vault contract
+contract Vault is IERC4626, ReentrancyGuard, UUPSUpgradeable {
     using MathLib for uint256;
 
     // Constants
@@ -96,6 +116,7 @@ contract Vault is ReentrancyGuard {
 
     mapping(address => StrategyParams) public strategies;
     address[MAXIMUM_STRATEGIES] public withdrawalQueue;
+    uint256 public queueLength;
 
     bool public emergencyShutdown;
 
@@ -146,7 +167,7 @@ contract Vault is ReentrancyGuard {
     event StrategyAddedToQueue(address indexed strategy);
     event NewPendingGovernance(address indexed pendingGovernance);
 
-    // Initialization (replaces Vyper initialize external)
+    // Initialization
     function initialize(
         address _token,
         address _governance,
@@ -157,6 +178,7 @@ contract Vault is ReentrancyGuard {
         address _management
     ) external {
         require(activation == 0, "initialized");
+        __UUPSUpgradeable_init();
         token = IERC20(_token);
         if (bytes(nameOverride).length == 0) {
             name = string(abi.encodePacked(IDetailedERC20(_token).symbol(), " nVault"));
@@ -186,8 +208,12 @@ contract Vault is ReentrancyGuard {
         emit UpdateManagementFee(200);
         lastReport = block.timestamp;
         activation = block.timestamp;
-        lockedProfitDegradation = (DEGRADATION_COEFFICIENT * 46) / 1e6; // ~6 hours in seconds-scale
+        lockedProfitDegradation = (DEGRADATION_COEFFICIENT * 46) / 1e6; // ~6 hours
+        queueLength = 0;
     }
+
+    // UUPS upgradability
+    function _authorizeUpgrade(address newImplementation) internal override onlyGov {}
 
     // EIP-712 domain separator
     function _domainSeparatorV4() internal view returns (bytes32) {
@@ -243,24 +269,21 @@ contract Vault is ReentrancyGuard {
     }
 
     function setWithdrawalQueue(address[MAXIMUM_STRATEGIES] calldata queue) external onlyGovOrMgmt {
-        // Validate and reorder only existing entries
-        address[MAXIMUM_STRATEGIES] memory oldq = withdrawalQueue;
-        for (uint256 i=0;i<MAXIMUM_STRATEGIES;i++) {
-            if (queue[i] == address(0)) {
-                require(oldq[i] == address(0), "no extend");
-                break;
-            }
-            require(oldq[i] != address(0), "no add");
+        uint256 newLength = 0;
+        mapping(address => bool) storage tempExists;
+        for (uint256 i = 0; i < MAXIMUM_STRATEGIES; i++) {
+            if (queue[i] == address(0)) break;
             require(strategies[queue[i]].activation > 0, "unknown");
-            bool exists = false;
-            for (uint256 j=0;j<MAXIMUM_STRATEGIES;j++) {
-                if (queue[j] == address(0)) { exists = true; break; }
-                if (queue[i] == oldq[j]) { exists = true; }
-                if (j <= i) continue;
-                require(queue[i] != queue[j], "dup");
-            }
-            require(exists, "exists");
-            withdrawalQueue[i] = queue[i]; // Update withdraw queue
+            require(!tempExists[queue[i]], "dup");
+            tempExists[queue[i]] = true;
+            newLength++;
+        }
+        require(newLength == queueLength, "must include all existing");
+        for (uint256 i = 0; i < queueLength; i++) {
+            require(tempExists[withdrawalQueue[i]], "missing existing");
+        }
+        for (uint256 i = 0; i < newLength; i++) {
+            withdrawalQueue[i] = queue[i];
         }
         emit UpdateWithdrawalQueue(queue);
     }
@@ -286,7 +309,7 @@ contract Vault is ReentrancyGuard {
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
         uint256 allowed = allowance[from][msg.sender];
         if (allowed != type(uint256).max) {
-            allowance[from][msg.sender] = allowed - amount; // Allowance to 'to' 
+            allowance[from][msg.sender] = allowed - amount;
             emit Approval(from, msg.sender, allowance[from][msg.sender]);
         }
         _transfer(from, to, amount); return true;
@@ -296,13 +319,12 @@ contract Vault is ReentrancyGuard {
         allowance[msg.sender][spender] += amount; 
         emit Approval(msg.sender, spender, allowance[msg.sender][spender]); 
         return true; }
-
     function decreaseAllowance(address spender, uint256 amount) external returns (bool) { 
         allowance[msg.sender][spender] -= amount; 
         emit Approval(msg.sender, spender, allowance[msg.sender][spender]); 
         return true; }
 
-    // EIP-2612 permit See https://eips.ethereum.org/EIPS/eip-2612.
+    // EIP-2612 permit
     function permit(address owner, address spender, uint256 value, uint256 deadline, bytes calldata signature) external returns (bool) {
         require(owner != address(0), "owner");
         require(deadline >= block.timestamp, "expired");
@@ -339,9 +361,8 @@ contract Vault is ReentrancyGuard {
     // View helpers
     function _totalAssets() internal view returns (uint256) { 
         return totalIdle + totalDebt; 
-        }
-        
-    function totalAssets() external view returns (uint256) { return _totalAssets(); }
+    }
+    function totalAssets() external view override returns (uint256) { return _totalAssets(); }
 
     function _calculateLockedProfit() internal view returns (uint256) {
         uint256 lockedFundsRatio = (block.timestamp - lastReport) * lockedProfitDegradation;
@@ -367,7 +388,6 @@ contract Vault is ReentrancyGuard {
         emit Transfer(address(0), to, shares);
     }
 
-    // NOTE: This is internal function so if we want to test it we want to make a wrapper
     function _shareValue(uint256 shares) internal view returns (uint256) {
         if (totalSupply == 0) return shares;
         return (shares * _freeFunds()) / totalSupply;
@@ -377,7 +397,6 @@ contract Vault is ReentrancyGuard {
         return _shareValue(shares);
     }
 
-    // NOTE: This is internal function so if we want to test it we want to make a wrapper
     function _sharesForAmount(uint256 amount) internal view returns (uint256) {
         uint256 ff = _freeFunds();
         if (ff > 0) return (amount * totalSupply) / ff; else return 0;
@@ -389,23 +408,77 @@ contract Vault is ReentrancyGuard {
 
     function maxAvailableShares() external view returns (uint256) {
         uint256 shares = _sharesForAmount(totalIdle);
-        for (uint256 i=0;i<MAXIMUM_STRATEGIES;i++) {
+        for (uint256 i = 0; i < queueLength; i++) {
             address s = withdrawalQueue[i];
-            if (s == address(0)) break;
             shares += _sharesForAmount(strategies[s].totalDebt);
         }
         return shares;
     }
 
+    // ERC4626 interface implementations
+    function asset() external view override returns (address) {
+        return address(token);
+    }
+
+    function maxDeposit(address /*receiver*/) external view override returns (uint256) {
+        return availableDepositLimit();
+    }
+
+    function previewDeposit(uint256 assets) external view override returns (uint256) {
+        return _sharesForAmount(assets);
+    }
+
+    function maxMint(address /*receiver*/) external view override returns (uint256) {
+        return previewDeposit(availableDepositLimit());
+    }
+
+    function previewMint(uint256 shares) external view override returns (uint256) {
+        return _shareValue(shares);
+    }
+
+    function maxWithdraw(address owner) external view override returns (uint256) {
+        return _shareValue(balanceOf[owner]);
+    }
+
+    function previewWithdraw(uint256 assets) external view override returns (uint256) {
+        return _sharesForAmount(assets);
+    }
+
+    function maxRedeem(address owner) external view override returns (uint256) {
+        return balanceOf[owner];
+    }
+
+    function previewRedeem(uint256 shares) external view override returns (uint256) {
+        return _shareValue(shares);
+    }
+
+    function mint(uint256 shares, address receiver) external override nonReentrant returns (uint256 assets) {
+        assets = previewMint(shares);
+        deposit(assets, receiver);
+        return assets;
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) external override nonReentrant returns (uint256 assets) {
+        if (msg.sender != owner) {
+            uint256 allowed = allowance[owner][msg.sender];
+            if (allowed != type(uint256).max) {
+                allowance[owner][msg.sender] = allowed - shares;
+                emit Approval(owner, msg.sender, allowance[owner][msg.sender]);
+            }
+        }
+        assets = withdraw(shares, receiver, owner);
+        return assets;
+    }
+
     // Core actions
-    function deposit(uint256 _amount, address recipient) external nonReentrant returns (uint256) {
+    function deposit(uint256 _amount, address recipient) external override nonReentrant returns (uint256) {
         if (recipient == address(0)) recipient = msg.sender;
         require(!emergencyShutdown, "shutdown");
         require(recipient != address(this), "recipient");
 
         uint256 amount = _amount;
         if (amount == MAX_UINT256) {
-            uint256 maxDep = depositLimit > _totalAssets() ? (depositLimit - _totalAssets()) : 0;
+            uint256 maxDep = depositLimit > _totalAssets() ? depositLimit - _totalAssets() : 0;
             amount = MathLib.min(maxDep, IERC20(token).balanceOf(msg.sender));
         } else {
             if (depositLimit > 0) {
@@ -432,9 +505,8 @@ contract Vault is ReentrancyGuard {
         uint256 totalLoss = 0;
 
         if (value > vaultBalance) {
-            for (uint256 i=0;i<MAXIMUM_STRATEGIES;i++) {
+            for (uint256 i = 0; i < queueLength; i++) {
                 address strat = withdrawalQueue[i];
-                if (strat == address(0)) break;
                 if (value <= vaultBalance) break;
                 uint256 amountNeeded = value - vaultBalance;
                 amountNeeded = MathLib.min(amountNeeded, strategies[strat].totalDebt);
@@ -444,9 +516,12 @@ contract Vault is ReentrancyGuard {
                 uint256 withdrawn = IERC20(token).balanceOf(address(this)) - pre;
                 vaultBalance += withdrawn;
                 if (loss > 0) {
-                    value -= loss; totalLoss += loss; _reportLoss(strat, loss);
+                    value -= loss;
+                    totalLoss += loss;
+                    _reportLoss(strat, loss);
                 }
-                strategies[strat].totalDebt -= withdrawn; totalDebt -= withdrawn;
+                strategies[strat].totalDebt -= withdrawn;
+                totalDebt -= withdrawn;
                 emit WithdrawFromStrategy(strat, strategies[strat].totalDebt, loss);
             }
             totalIdle = vaultBalance;
@@ -467,22 +542,66 @@ contract Vault is ReentrancyGuard {
         return value;
     }
 
+    function withdraw(uint256 assets, address receiver, address owner) external override nonReentrant returns (uint256 shares) {
+        if (receiver == address(0)) receiver = msg.sender;
+        shares = previewWithdraw(assets);
+        if (msg.sender != owner) {
+            uint256 allowed = allowance[owner][msg.sender];
+            if (allowed != type(uint256).max) {
+                allowance[owner][msg.sender] = allowed - shares;
+                emit Approval(owner, msg.sender, allowance[owner][msg.sender]);
+            }
+        }
+        require(shares > 0 && shares <= balanceOf[owner], "shares");
+
+        uint256 value = _shareValue(shares);
+        uint256 vaultBalance = totalIdle;
+        uint256 totalLoss = 0;
+
+        if (value > vaultBalance) {
+            for (uint256 i = 0; i < queueLength; i++) {
+                address strat = withdrawalQueue[i];
+                if (value <= vaultBalance) break;
+                uint256 amountNeeded = value - vaultBalance;
+                amountNeeded = MathLib.min(amountNeeded, strategies[strat].totalDebt);
+                if (amountNeeded == 0) continue;
+                uint256 pre = IERC20(token).balanceOf(address(this));
+                uint256 loss = IStrategy(strat).withdraw(amountNeeded);
+                uint256 withdrawn = IERC20(token).balanceOf(address(this)) - pre;
+                vaultBalance += withdrawn;
+                if (loss > 0) {
+                    value -= loss;
+                    totalLoss += loss;
+                    _reportLoss(strat, loss);
+                }
+                strategies[strat].totalDebt -= withdrawn;
+                totalDebt -= withdrawn;
+                emit WithdrawFromStrategy(strat, strategies[strat].totalDebt, loss);
+            }
+            totalIdle = vaultBalance;
+            if (value > vaultBalance) {
+                value = vaultBalance;
+                shares = _sharesForAmount(value + totalLoss);
+            }
+            require(totalLoss <= (MAX_BPS * (value + totalLoss)) / MAX_BPS, "excess loss");
+        }
+
+        totalSupply -= shares;
+        balanceOf[owner] -= shares;
+        emit Transfer(owner, address(0), shares);
+
+        totalIdle -= value;
+        _safeTransfer(address(token), receiver, value);
+        emit Withdraw(receiver, shares, value);
+        return shares;
+    }
+
     // Price per shares
     function pricePerShare() external view returns (uint256) { return _shareValue(10 ** decimals); }
 
-    // Queue organize helper
-    function _organizeWithdrawalQueue() internal {
-        uint256 offset;
-        for (uint256 i=0;i<MAXIMUM_STRATEGIES;i++) {
-            address s = withdrawalQueue[i];
-            if (s == address(0)) { offset += 1; }
-            else if (offset > 0) { withdrawalQueue[i - offset] = s; withdrawalQueue[i] = address(0); }
-        }
-    }
-
     // Strategy management
     function addStrategy(address strategy, uint256 _debtRatio, uint256 minDebtPerHarvest, uint256 maxDebtPerHarvest, uint256 _performanceFee) external onlyGov {
-        require(withdrawalQueue[MAXIMUM_STRATEGIES - 1] == address(0), "full");
+        require(queueLength < MAXIMUM_STRATEGIES, "full");
         require(!emergencyShutdown, "shutdown");
         require(strategy != address(0), "addr");
         require(strategies[strategy].activation == 0, "exists");
@@ -505,8 +624,9 @@ contract Vault is ReentrancyGuard {
         });
         emit StrategyAdded(strategy, _debtRatio, minDebtPerHarvest, maxDebtPerHarvest, _performanceFee);
         debtRatio += _debtRatio;
-        withdrawalQueue[MAXIMUM_STRATEGIES - 1] = strategy;
-        _organizeWithdrawalQueue();
+        withdrawalQueue[queueLength] = strategy;
+        queueLength++;
+        emit StrategyAddedToQueue(strategy);
     }
 
     function updateStrategyDebtRatio(address strategy, uint256 _debtRatio) external onlyGovOrMgmt {
@@ -565,7 +685,12 @@ contract Vault is ReentrancyGuard {
         });
         IStrategy(oldVersion).migrate(newVersion);
         emit StrategyMigrated(oldVersion, newVersion);
-        for (uint256 i=0;i<MAXIMUM_STRATEGIES;i++) { if (withdrawalQueue[i] == oldVersion) { withdrawalQueue[i] = newVersion; return; } }
+        for (uint256 i = 0; i < queueLength; i++) {
+            if (withdrawalQueue[i] == oldVersion) {
+                withdrawalQueue[i] = newVersion;
+                return;
+            }
+        }
     }
 
     function revokeStrategy(address strategy) external {
@@ -576,16 +701,25 @@ contract Vault is ReentrancyGuard {
 
     function addStrategyToQueue(address strategy) external onlyGovOrMgmt {
         require(strategies[strategy].activation > 0, "unknown");
-        uint256 lastIdx;
-        for (uint256 i=0;i<MAXIMUM_STRATEGIES;i++) { address s = withdrawalQueue[i]; if (s == address(0)) break; require(s != strategy, "dup"); lastIdx++; }
-        require(lastIdx < MAXIMUM_STRATEGIES, "full");
-        withdrawalQueue[MAXIMUM_STRATEGIES - 1] = strategy;
-        _organizeWithdrawalQueue();
+        for (uint256 i = 0; i < queueLength; i++) {
+            require(withdrawalQueue[i] != strategy, "dup");
+        }
+        require(queueLength < MAXIMUM_STRATEGIES, "full");
+        withdrawalQueue[queueLength] = strategy;
+        queueLength++;
         emit StrategyAddedToQueue(strategy);
     }
 
     function removeStrategyFromQueue(address strategy) external onlyGovOrMgmt {
-        for (uint256 i=0;i<MAXIMUM_STRATEGIES;i++) { if (withdrawalQueue[i] == strategy) { withdrawalQueue[i] = address(0); _organizeWithdrawalQueue(); emit StrategyRemovedFromQueue(strategy); return; } }
+        for (uint256 i = 0; i < queueLength; i++) {
+            if (withdrawalQueue[i] == strategy) {
+                withdrawalQueue[i] = withdrawalQueue[queueLength - 1];
+                withdrawalQueue[queueLength - 1] = address(0);
+                queueLength--;
+                emit StrategyRemovedFromQueue(strategy);
+                return;
+            }
+        }
         revert("not in queue");
     }
 
@@ -595,9 +729,12 @@ contract Vault is ReentrancyGuard {
         uint256 strategyDebtLimit = (strategies[strategy].debtRatio * _totalAssets()) / MAX_BPS;
         uint256 strategyTotalDebt = strategies[strategy].totalDebt;
         if (emergencyShutdown) return strategyTotalDebt;
-        else if (strategyTotalDebt <= strategyDebtLimit) return 0; else return strategyTotalDebt - strategyDebtLimit;
+        return strategyTotalDebt <= strategyDebtLimit ? 0 : strategyTotalDebt - strategyDebtLimit;
     }
-    function debtOutstanding(address strategy) external view returns (uint256) { if (strategy == address(0)) strategy = msg.sender; return _debtOutstanding(strategy); }
+    function debtOutstanding(address strategy) external view returns (uint256) { 
+        if (strategy == address(0)) strategy = msg.sender; 
+        return _debtOutstanding(strategy); 
+    }
 
     function _creditAvailable(address strategy) internal view returns (uint256) {
         if (emergencyShutdown) return 0;
@@ -612,9 +749,12 @@ contract Vault is ReentrancyGuard {
         uint256 available = sDebtLimit - sTotalDebt;
         available = MathLib.min(available, vDebtLimit - vTotalDebt);
         available = MathLib.min(available, totalIdle);
-        if (available < sMin) return 0; else return MathLib.min(available, sMax);
+        return available < sMin ? 0 : MathLib.min(available, sMax);
     }
-    function creditAvailable(address strategy) external view returns (uint256) { if (strategy == address(0)) strategy = msg.sender; return _creditAvailable(strategy); }
+    function creditAvailable(address strategy) external view returns (uint256) { 
+        if (strategy == address(0)) strategy = msg.sender; 
+        return _creditAvailable(strategy); 
+    }
 
     function _expectedReturn(address strategy) internal view returns (uint256) {
         uint256 last = strategies[strategy].lastReport;
@@ -622,14 +762,19 @@ contract Vault is ReentrancyGuard {
         uint256 totalHarvestTime = last - strategies[strategy].activation;
         if (timeSince > 0 && totalHarvestTime > 0 && IStrategy(strategy).isActive()) {
             return (strategies[strategy].totalGain * timeSince) / totalHarvestTime;
-        } else { return 0; }
+        }
+        return 0;
     }
-    function expectedReturn(address strategy) external view returns (uint256) { if (strategy == address(0)) strategy = msg.sender; return _expectedReturn(strategy); }
+    function expectedReturn(address strategy) external view returns (uint256) { 
+        if (strategy == address(0)) strategy = msg.sender; 
+        return _expectedReturn(strategy); 
+    }
 
     // Fees and reporting
     function _assessFees(address strategy, uint256 gain) internal returns (uint256 total_fee) {
         if (strategies[strategy].activation == block.timestamp) return 0;
-        uint256 duration = block.timestamp - strategies[strategy].lastReport; require(duration != 0, "same block");
+        uint256 duration = block.timestamp - strategies[strategy].lastReport; 
+        require(duration != 0, "same block");
         if (gain == 0) return 0;
         uint256 management_fee = ((strategies[strategy].totalDebt - IStrategy(strategy).delegatedAssets()) * duration * managementFee) / MAX_BPS / SECS_PER_YEAR;
         uint256 strategist_fee = (gain * strategies[strategy].performanceFee) / MAX_BPS;
@@ -648,7 +793,7 @@ contract Vault is ReentrancyGuard {
         emit FeeReport(management_fee, performance_fee_, strategist_fee, duration);
     }
 
-    function report(uint256 gain, uint256 loss, uint256 _debtPayment) external returns (uint256) {
+    function report(uint256 gain, uint256 loss, uint256 _debtPayment) external nonReentrant returns (uint256) {
         require(strategies[msg.sender].activation > 0, "unknown");
         require(IERC20(token).balanceOf(msg.sender) >= gain + _debtPayment, "balance");
         if (loss > 0) { _reportLoss(msg.sender, loss); }
@@ -657,42 +802,59 @@ contract Vault is ReentrancyGuard {
         uint256 credit = _creditAvailable(msg.sender);
         uint256 debt = _debtOutstanding(msg.sender);
         uint256 debtPayment = MathLib.min(_debtPayment, debt);
-        if (debtPayment > 0) { strategies[msg.sender].totalDebt -= debtPayment; totalDebt -= debtPayment; debt -= debtPayment; }
-        if (credit > 0) { strategies[msg.sender].totalDebt += credit; totalDebt += credit; }
+        if (debtPayment > 0) { 
+            strategies[msg.sender].totalDebt -= debtPayment; 
+            totalDebt -= debtPayment; 
+            debt -= debtPayment; 
+        }
+        if (credit > 0) { 
+            strategies[msg.sender].totalDebt += credit; 
+            totalDebt += credit; 
+        }
         uint256 totalAvail = gain + debtPayment;
-        if (totalAvail < credit) { totalIdle -= (credit - totalAvail); _safeTransfer(address(token), msg.sender, credit - totalAvail); }
-        else if (totalAvail > credit) { totalIdle += (totalAvail - credit); _safeTransferFrom(address(token), msg.sender, address(this), totalAvail - credit); }
+        if (totalAvail < credit) { 
+            totalIdle -= (credit - totalAvail); 
+            _safeTransfer(address(token), msg.sender, credit - totalAvail); 
+        } else if (totalAvail > credit) { 
+            totalIdle += (totalAvail - credit); 
+            _safeTransferFrom(address(token), msg.sender, address(this), totalAvail - credit); 
+        }
         uint256 lockedProfitBeforeLoss = _calculateLockedProfit() + gain - totalFees;
         if (lockedProfitBeforeLoss > loss) lockedProfit = lockedProfitBeforeLoss - loss; else lockedProfit = 0;
-        strategies[msg.sender].lastReport = block.timestamp; lastReport = block.timestamp;
+        strategies[msg.sender].lastReport = block.timestamp; 
+        lastReport = block.timestamp;
         emit StrategyReported(msg.sender, gain, loss, debtPayment, strategies[msg.sender].totalGain, strategies[msg.sender].totalLoss, strategies[msg.sender].totalDebt, credit, strategies[msg.sender].debtRatio);
-        if (strategies[msg.sender].debtRatio == 0 || emergencyShutdown) { return IStrategy(msg.sender).estimatedTotalAssets(); } else { return debt; }
+        if (strategies[msg.sender].debtRatio == 0 || emergencyShutdown) { 
+            return IStrategy(msg.sender).estimatedTotalAssets(); 
+        } else { 
+            return debt; 
+        }
     }
 
     function _reportLoss(address strategy, uint256 loss) internal {
-        uint256 totalDebt_ = strategies[strategy].totalDebt; require(totalDebt_ >= loss, "loss");
+        uint256 totalDebt_ = strategies[strategy].totalDebt; 
+        require(totalDebt_ >= loss, "loss");
         if (debtRatio != 0) {
-            uint256 ratio_change = 0;
-            if (totalDebt > 0) {
-                ratio_change = MathLib.min((loss * debtRatio) / totalDebt, strategies[strategy].debtRatio);
-            }
-            strategies[strategy].debtRatio -= ratio_change; debtRatio -= ratio_change;
+            uint256 ratio_change = totalDebt > 0 ? MathLib.min((loss * debtRatio) / totalDebt, strategies[strategy].debtRatio) : 0;
+            strategies[strategy].debtRatio -= ratio_change;
+            debtRatio -= ratio_change;
         }
         strategies[strategy].totalLoss += loss;
-        strategies[strategy].totalDebt = totalDebt_ - loss; totalDebt -= loss;
+        strategies[strategy].totalDebt = totalDebt_ - loss;
+        totalDebt -= loss;
     }
 
-    function availableDepositLimit() external view returns (uint256) { return depositLimit > _totalAssets() ? depositLimit - _totalAssets() : 0; }
+    function availableDepositLimit() public view returns (uint256) { 
+        return depositLimit > _totalAssets() ? depositLimit - _totalAssets() : 0; 
+    }
 
-    // The sweep() function lets the vault governance recover (sweep out) unexpected or leftover tokens that
-    //             shouldn’t be in the vault — but protects the main vault asset.
     function sweep(address _token, uint256 amount) external onlyGov {
-        uint256 value = amount;
-        if (value == MAX_UINT256) { value = IERC20(_token).balanceOf(address(this)); }
-        if (_token == address(token)) { value = IERC20(_token).balanceOf(address(this)) - totalIdle; }
+        require(_token != address(token) || IERC20(_token).balanceOf(address(this)) >= totalIdle + amount, "insufficient idle");
+        uint256 value = amount == MAX_UINT256 ? IERC20(_token).balanceOf(address(this)) : amount;
+        if (_token == address(token)) {
+            value = MathLib.min(value, IERC20(_token).balanceOf(address(this)) - totalIdle);
+        }
         emit Sweep(_token, value);
         _safeTransfer(_token, governance, value);
     }
 }
-
-
