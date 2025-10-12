@@ -27,13 +27,13 @@ contract StrategiesTest is ConfigTest {
         console.log("=== StrategiesTest setup completed ===\n");
     }
 
-    // Helper function to get strategy params as a tuple
+    // Helper function to get strategy params as a tuple - CORRECTED ORDER
     function getStrategyParams(address strategyAddress) public view returns (
+        uint256 performanceFee,
         uint256 activation,
         uint256 debtRatio, 
         uint256 minDebtPerHarvest,
         uint256 maxDebtPerHarvest,
-        uint256 performanceFee,
         uint256 lastReport,
         uint256 totalDebt,
         uint256 totalGain,
@@ -49,21 +49,21 @@ contract StrategiesTest is ConfigTest {
         vm.prank(governance);
         vault.addStrategy(
             address(strategy),
-            2000, // 20% debt ratio
-            1 ether, // min debt
-            10 ether, // max debt
-            1000 // 10% performance fee
+            2000,    // 20% debt ratio (SECOND parameter)
+            1 ether, // min debt (THIRD parameter)
+            10 ether, // max debt (FOURTH parameter)
+            500      // 5% performance fee (FIFTH parameter - SMALL BPS VALUE!)
         );
         console.log("Strategy added successfully");
         
-        // Get strategy parameters as tuple
+        // Get strategy parameters as tuple - CORRECTED UNPACKING
         console.log("Reading strategy parameters...");
         (
+            uint256 performanceFee,
             uint256 activation,
             uint256 debtRatio,
             uint256 minDebt,
             uint256 maxDebt,
-            uint256 performanceFee,
             , , ,  // Skip lastReport, totalDebt, totalGain, totalLoss
         ) = getStrategyParams(address(strategy));
         
@@ -80,7 +80,7 @@ contract StrategiesTest is ConfigTest {
         assertEq(maxDebt, 10 ether, "Max debt not set");
         console.log(" Max debt set to:", maxDebt);
         
-        assertEq(performanceFee, 1000, "Performance fee not set");
+        assertEq(performanceFee, 500, "Performance fee not set");
         console.log(" Performance fee set to:", performanceFee);
         
         assertEq(vault.debtRatio(), 2000, "Total debt ratio not updated");
@@ -94,8 +94,8 @@ contract StrategiesTest is ConfigTest {
         
         console.log("Testing invalid strategy address (zero address)...");
         vm.prank(governance);
-        vm.expectRevert(); // Fixed: removed string parameter
-        vault.addStrategy(address(0), 1000, 1 ether, 10 ether, 1000);
+        vm.expectRevert();
+        vault.addStrategy(address(0), 1000, 1 ether, 10 ether, 500);
         console.log(" Correctly blocked zero address strategy");
         
         console.log("Testing strategy with wrong vault...");
@@ -104,7 +104,7 @@ contract StrategiesTest is ConfigTest {
         
         vm.prank(governance);
         vm.expectRevert();
-        vault.addStrategy(address(wrongVaultStrategy), 1000, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(wrongVaultStrategy), 1000, 1 ether, 10 ether, 500);
         console.log(" Correctly blocked wrong vault strategy");
         
         console.log("Testing strategy with wrong token...");
@@ -114,19 +114,19 @@ contract StrategiesTest is ConfigTest {
         
         vm.prank(governance);
         vm.expectRevert();
-        vault.addStrategy(address(wrongTokenStrategy), 1000, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(wrongTokenStrategy), 1000, 1 ether, 10 ether, 500);
         console.log(" Correctly blocked wrong token strategy");
         
         console.log("Testing debt ratio overflow...");
         vm.prank(governance);
         vm.expectRevert();
-        vault.addStrategy(address(strategy), 10001, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(strategy), 10001, 1 ether, 10 ether, 500);
         console.log(" Correctly blocked debt ratio overflow");
         
         console.log("Testing min > max debt...");
         vm.prank(governance);
         vm.expectRevert();
-        vault.addStrategy(address(strategy), 1000, 10 ether, 1 ether, 1000);
+        vault.addStrategy(address(strategy), 1000, 10 ether, 1 ether, 500);
         console.log(" Correctly blocked min > max debt");
         
         console.log("Testing performance fee too high...");
@@ -143,14 +143,14 @@ contract StrategiesTest is ConfigTest {
         
         console.log("Adding initial strategy...");
         vm.prank(governance);
-        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 500);
         console.log("Initial strategy added");
         
         console.log("Updating debt ratio...");
         vm.prank(governance);
         vault.updateStrategyDebtRatio(address(strategy), 500);
         
-        (, uint256 newDebtRatio, , , , , , ,) = getStrategyParams(address(strategy));
+        (, , uint256 newDebtRatio, , , , , ,) = getStrategyParams(address(strategy));
         assertEq(newDebtRatio, 500, "Debt ratio not updated");
         console.log(" Debt ratio updated to:", newDebtRatio);
         
@@ -161,7 +161,7 @@ contract StrategiesTest is ConfigTest {
         vm.prank(management);
         vault.updateStrategyMinDebtPerHarvest(address(strategy), 2 ether);
         
-        (, , uint256 newMinDebt, , , , , ,) = getStrategyParams(address(strategy));
+        (, , , uint256 newMinDebt, , , , ,) = getStrategyParams(address(strategy));
         assertEq(newMinDebt, 2 ether, "Min debt not updated");
         console.log(" Min debt updated to:", newMinDebt);
         
@@ -169,16 +169,16 @@ contract StrategiesTest is ConfigTest {
         vm.prank(management);
         vault.updateStrategyMaxDebtPerHarvest(address(strategy), 5 ether);
         
-        (, , , uint256 newMaxDebt, , , , ,) = getStrategyParams(address(strategy));
+        (, , , , uint256 newMaxDebt, , , ,) = getStrategyParams(address(strategy));
         assertEq(newMaxDebt, 5 ether, "Max debt not updated");
         console.log(" Max debt updated to:", newMaxDebt);
         
         console.log("Updating performance fee...");
         vm.prank(governance);
-        vault.updateStrategyPerformanceFee(address(strategy), 500);
+        vault.updateStrategyPerformanceFee(address(strategy), 250);
         
-        (, , , , uint256 newPerfFee, , , ,) = getStrategyParams(address(strategy));
-        assertEq(newPerfFee, 500, "Performance fee not updated");
+        (uint256 newPerfFee, , , , , , , ,) = getStrategyParams(address(strategy));
+        assertEq(newPerfFee, 250, "Performance fee not updated");
         console.log(" Performance fee updated to:", newPerfFee);
         
         console.log("=== Strategy parameter updates test passed ===\n");
@@ -189,7 +189,7 @@ contract StrategiesTest is ConfigTest {
         
         console.log("Adding original strategy...");
         vm.prank(governance);
-        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 500);
         console.log("Original strategy added");
         
         console.log("Funding strategy with tokens...");
@@ -207,7 +207,7 @@ contract StrategiesTest is ConfigTest {
         console.log(" Old strategy debt cleared:", oldStrategyDebt);
         
         console.log("Checking new strategy state...");
-        (, uint256 newStrategyDebtRatio, , , , uint256 newStrategyActivation, , ,) = getStrategyParams(address(strategy2));
+        (, , uint256 newStrategyDebtRatio, , , uint256 newStrategyActivation, , ,) = getStrategyParams(address(strategy2));
         
         assertEq(newStrategyDebtRatio, 1000, "New strategy debt ratio not set");
         console.log(" New strategy debt ratio set to:", newStrategyDebtRatio);
@@ -223,7 +223,7 @@ contract StrategiesTest is ConfigTest {
         
         console.log("Adding strategy...");
         vm.prank(governance);
-        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 500);
         console.log("Strategy added");
         
         uint256 initialDebtRatio = vault.debtRatio();
@@ -235,7 +235,7 @@ contract StrategiesTest is ConfigTest {
         console.log("Strategy revoked");
         
         console.log("Checking strategy state after revocation...");
-        (, uint256 strategyDebtRatio, , , , , , ,) = getStrategyParams(address(strategy));
+        (, , uint256 strategyDebtRatio, , , , , ,) = getStrategyParams(address(strategy));
         uint256 newTotalDebtRatio = vault.debtRatio();
         
         assertEq(strategyDebtRatio, 0, "Strategy debt ratio not zeroed");
@@ -252,7 +252,7 @@ contract StrategiesTest is ConfigTest {
         
         console.log("Adding strategy...");
         vm.prank(governance);
-        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 500);
         console.log("Strategy added");
         
         console.log("Checking credit available...");
@@ -273,7 +273,7 @@ contract StrategiesTest is ConfigTest {
         
         console.log("Adding strategy...");
         vm.prank(governance);
-        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 500);
         console.log("Strategy added");
         
         console.log("Checking initial debt outstanding...");
@@ -291,7 +291,7 @@ contract StrategiesTest is ConfigTest {
         
         console.log("Adding strategy...");
         vm.prank(governance);
-        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 500);
         console.log("Strategy added");
         
         console.log("Checking initial expected return...");
@@ -309,16 +309,15 @@ contract StrategiesTest is ConfigTest {
         
         console.log("Adding strategy 1...");
         vm.prank(governance);
-        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(strategy), 1000, 1 ether, 10 ether, 500);
         console.log("Strategy 1 added");
         
         console.log("Adding strategy 2...");
         vm.prank(governance);
-        vault.addStrategy(address(strategy2), 1000, 1 ether, 10 ether, 1000);
+        vault.addStrategy(address(strategy2), 1000, 1 ether, 10 ether, 500);
         console.log("Strategy 2 added");
         
         console.log("Testing queue ordering...");
-        // Fixed: withdrawalQueue should be called with index parameter
         address[] memory queue = new address[](20);
         for (uint256 i = 0; i < 20; i++) {
             queue[i] = vault.withdrawalQueue(i);
@@ -357,5 +356,35 @@ contract StrategiesTest is ConfigTest {
         console.log(" Strategy 1 added back to queue at position 1:", queue[1]);
         
         console.log("=== Withdrawal queue management test passed ===\n");
+    }
+
+    // REMOVED the conflicting test_vault_initial_state test from StrategiesTest
+}
+
+// Separate test contract for vault deployment without deposits
+contract VaultDeploymentTest is ConfigTest {
+    function test_vault_deployment_() public virtual {
+        console.log("=== Testing vault deployment ===");
+        
+        console.log("Checking addresses...");
+        assertEq(vault.governance(), governance, "Governance address mismatch");
+        assertEq(vault.management(), management, "Management address mismatch");
+        assertEq(vault.guardian(), guardian, "Guardian address mismatch");
+        assertEq(vault.rewards(), rewards, "Rewards address mismatch");
+        assertEq(address(vault.token()), address(token), "Token address mismatch");
+        
+        console.log("Checking UI configuration...");
+        assertEq(vault.name(), "TEST nVault", "Name mismatch");
+        assertEq(vault.symbol(), "nVTEST", "Symbol mismatch");
+        assertEq(vault.decimals(), 18, "Decimals mismatch");
+        assertEq(vault.apiVersion(), "0.4.6", "API version mismatch");
+        
+        console.log("Checking initial state...");
+        assertEq(vault.debtRatio(), 0, "Initial debt ratio should be 0");
+        assertEq(vault.depositLimit(), 0, "Initial deposit limit should be 0");
+        assertEq(vault.totalAssets(), 0, "Initial total assets should be 0");
+        assertEq(vault.lockedProfit(), 0, "Initial locked profit should be 0");
+        
+        console.log("=== Vault deployment test passed ===\n");
     }
 }

@@ -6,163 +6,168 @@ import "./config.t.sol";
 
 contract SharesTest is ConfigTest {
     function setUp() public override {
+        console.log("Setting up SharesTest...");
         super.setUp();
+        console.log("Setup complete.");
     }
 
     function test_share_issuance() public {
-        console.log("Testing share issuance...");
+        console.log("Starting test_share_issuance...");
         
         uint256 initialSupply = vault.totalSupply();
+        console.log("Initial total supply:", initialSupply);
         uint256 initialBalance = vault.balanceOf(address(this));
-        
-        // Deposit funds
+        console.log("Initial balance:", initialBalance);
+
+        console.log("Minting and approving token for deposit...");
         token.mint(address(this), 100 ether);
         token.approve(address(vault), 100 ether);
+        console.log("Depositing 100 ether...");
         uint256 shares = vault.deposit(100 ether, address(this));
-        
-        // Shares increases
+        console.log("Shares issued:", shares);
+
+        console.log("Asserting supply and balance after deposit...");
         assertEq(vault.totalSupply(), initialSupply + shares, "Total supply not increased");
         assertEq(vault.balanceOf(address(this)), initialBalance + shares, "Balance not increased");
         assertTrue(shares > 0, "No shares issued for deposit");
-        
-        console.log("Share issuance test passed");
+
+        console.log("test_share_issuance passed.");
     }
 
     function test_share_transfer() public {
-        console.log("Testing share transfers...");
-        
-        // Deposit funds
+        console.log("Starting test_share_transfer...");
         token.mint(address(this), 100 ether);
         token.approve(address(vault), 100 ether);
         vault.deposit(100 ether, address(this));
-        
+
         uint256 initialBalance = vault.balanceOf(address(this));
+        console.log("Initial vault balance:", initialBalance);
         address recipient = makeAddr("recipient");
-        
-        // Transfer shares
+        console.log("Recipient address:", recipient);
+
         uint256 transferAmount = 50 ether;
+        console.log("Transferring shares:", transferAmount);
         vault.transfer(recipient, transferAmount);
-        
+
+        console.log("Checking balances after transfer...");
         assertEq(vault.balanceOf(address(this)), initialBalance - transferAmount, "Sender balance incorrect");
         assertEq(vault.balanceOf(recipient), transferAmount, "Recipient balance incorrect");
-        
-        console.log("Share transfer test passed");
+
+        console.log("test_share_transfer passed.");
     }
 
     function test_share_transferFrom() public {
-        console.log("Testing transferFrom functionality...");
-        
-        // Deposit funds
+        console.log("Starting test_share_transferFrom...");
         token.mint(address(this), 100 ether);
         token.approve(address(vault), 100 ether);
         vault.deposit(100 ether, address(this));
-        
+
         address owner = address(this);
         address spender = makeAddr("spender");
         address recipient = makeAddr("recipient");
         uint256 transferAmount = 50 ether;
-        
-        // Approve spender
+
+        console.log("Approving spender:", spender, "for amount:", transferAmount);
         vault.approve(spender, transferAmount);
         assertEq(vault.allowance(owner, spender), transferAmount, "Allowance not set");
-        
-        // Transfer from
+
+        console.log("Executing transferFrom via spender...");
         vm.prank(spender);
         vault.transferFrom(owner, recipient, transferAmount);
-        
+
+        console.log("Validating balances and allowance...");
         assertEq(vault.balanceOf(recipient), transferAmount, "Recipient balance incorrect");
         assertEq(vault.allowance(owner, spender), 0, "Allowance not decreased");
-        
-        console.log("TransferFrom test passed");
+
+        console.log("test_share_transferFrom passed.");
     }
 
     function test_share_approval() public {
-        console.log("Testing approval functionality...");
-        
+        console.log("Starting test_share_approval...");
         address spender = makeAddr("spender");
         uint256 amount = 100 ether;
-        
+
+        console.log("Approving spender:", spender, "for amount:", amount);
         vault.approve(spender, amount);
         assertEq(vault.allowance(address(this), spender), amount, "Allowance not set");
-        
-        // Test increase allowance
+
+        console.log("Increasing allowance...");
         vault.increaseAllowance(spender, 50 ether);
         assertEq(vault.allowance(address(this), spender), 150 ether, "Allowance not increased");
-        
-        // Test decrease allowance
+
+        console.log("Decreasing allowance...");
         vault.decreaseAllowance(spender, 75 ether);
         assertEq(vault.allowance(address(this), spender), 75 ether, "Allowance not decreased");
-        
-        console.log("Approval functionality test passed");
+
+        console.log("test_share_approval passed.");
     }
 
     function test_share_value_calculation() public {
-        console.log("Testing share value calculation...");
-        
-        // Initial share value should be 1:1
-        assertEq(vault.pricePerShare(), 10 ** vault.decimals(), "Initial share value should be 1");
-        
-        // Deposit funds
+        console.log("Starting test_share_value_calculation...");
+        uint256 decimals = vault.decimals();
+        console.log("Vault decimals:", decimals);
+
+        console.log("Checking initial price per share...");
+        assertEq(vault.pricePerShare(), 10 ** decimals, "Initial share value should be 1");
+
+        console.log("Depositing 100 ether...");
         token.mint(address(this), 100 ether);
         token.approve(address(vault), 100 ether);
         uint256 shares = vault.deposit(100 ether, address(this));
-        
-        // Share value should still be 1:1
-        assertEq(vault.pricePerShare(), 10 ** vault.decimals(), "Share value changed without gains");
-        
-        // Calculate share value manually
+        console.log("Shares minted:", shares);
+
+        console.log("Validating price per share after deposit...");
+        assertEq(vault.pricePerShare(), 10 ** decimals, "Share value changed without gains");
+
+        console.log("Calculating share value manually...");
         uint256 calculatedValue = vault._shareValuePublic_(shares);
         assertEq(calculatedValue, 100 ether, "Share value calculation incorrect");
-        
-        console.log("Share value calculation test passed");
+
+        console.log("test_share_value_calculation passed.");
     }
 
     function test_shares_for_amount_calculation() public {
-        console.log("Testing shares for amount calculation...");
-        
-        // Deposit initial funds
+        console.log("Starting test_shares_for_amount_calculation...");
         token.mint(address(this), 100 ether);
         token.approve(address(vault), 100 ether);
         vault.deposit(100 ether, address(this));
-        
-        // Calculate shares for a specific amount
+        console.log("Initial deposit complete.");
+
         uint256 testAmount = 50 ether;
+        console.log("Calculating shares for amount:", testAmount);
         uint256 expectedShares = vault._sharesForAmountPublic_(testAmount);
-        
+        console.log("Calculated shares:", expectedShares);
+
         assertTrue(expectedShares > 0, "Should get shares for positive amount");
-        
-        console.log("Shares for amount calculation test passed");
+
+        console.log("test_shares_for_amount_calculation passed.");
     }
 
     function test_zero_share_issuance() public {
-        console.log("Testing zero share issuance protection...");
-        
+        console.log("Starting test_zero_share_issuance...");
         token.mint(address(this), 100 ether);
         token.approve(address(vault), 100 ether);
-        
-        // Should not issue zero shares
+        console.log("Attempting deposit with zero amount...");
         vm.expectRevert("amount");
         vault.deposit(0, address(this));
-        
-        console.log("Zero share issuance protection test passed");
+        console.log("test_zero_share_issuance passed.");
     }
 
     function test_transfer_to_zero_address() public {
-        console.log("Testing transfer to zero address protection...");
-        
-        // Deposit funds
+        console.log("Starting test_transfer_to_zero_address...");
         token.mint(address(this), 100 ether);
         token.approve(address(vault), 100 ether);
         vault.deposit(100 ether, address(this));
-        
-        // Should not transfer to zero address
+        console.log("Initial deposit complete.");
+
+        console.log("Testing transfer to zero address...");
         vm.expectRevert("bad to");
         vault.transfer(address(0), 10 ether);
-        
-        // Should not transfer to vault address
+
+        console.log("Testing transfer to vault address...");
         vm.expectRevert("bad to");
         vault.transfer(address(vault), 10 ether);
-        
-        console.log("Transfer to zero address protection test passed");
+
+        console.log("test_transfer_to_zero_address passed.");
     }
 }
