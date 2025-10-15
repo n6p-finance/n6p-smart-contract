@@ -1,6 +1,0 @@
-onlyBuiltDependencies:
-  - '@biomejs/biome'
-  - bufferutil
-  - keccak
-  - sharp
-  - utf-8-validate

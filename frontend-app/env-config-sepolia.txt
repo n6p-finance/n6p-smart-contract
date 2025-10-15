@@ -1,9 +1,0 @@
-# Wallet Connect Project ID (required for RainbowKit)
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id
-
-# Set to 'true' to use testnet contracts
-NEXT_PUBLIC_USE_TESTNET=true
-
-# Contract addresses - deployed on Sepolia
-NEXT_PUBLIC_AI_DECISION_MODULE_ADDRESS=0x93F7d6566Aa4011aA7A0043Ddda4c6cCc3954BF7
-NEXT_PUBLIC_VAULT_ADDRESS=0x588eB46727429Aee3EBDc44337395fC7aa443AE4
