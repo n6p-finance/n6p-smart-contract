@@ -56,9 +56,14 @@ abstract contract ReentrancyGuard {
 }
 
 /* ========== Vault ========== */
-contract Vault is ReentrancyGuard {
+contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     using SafeERC20 for OZ_IERC20;
     using MathLib for uint256;
+
+    // ----- Constructor (for implementation contract; locks logic) -----
+    constructor() {
+        _disableInitializers(); // lock implementation contract
+    }
 
     // ----- Constants -----
     string public constant API_VERSION = "0.4.6";
@@ -189,7 +194,7 @@ contract Vault is ReentrancyGuard {
         string memory symbolOverride,
         address _guardian,
         address _management
-    ) external {
+    ) external initializer{
         require(activation == 0, "Vault: already initialized");
         require(_token != address(0), "Vault: token 0");
 
@@ -237,6 +242,9 @@ contract Vault is ReentrancyGuard {
         roleManager = _governance;
         emit UpdateRoleManager(_governance);
     }
+    
+    // ----- UUPS upgrade authorization -----
+    function _authorizeUpgrade(address) internal override onlyGov {}
 
     // ----- EIP-712 domain (permit) -----
     function _domainSeparatorV4() internal view returns (bytes32) {
