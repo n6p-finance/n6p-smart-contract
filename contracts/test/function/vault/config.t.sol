@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Test.sol";
 import "../../../src/core/DeFi/VaultDeFi.sol";
 
-contract MockToken is IERC20, IDetailedERC20 {
+contract MockToken is IERC20 {
     string public name = "Test Token";
     string public symbol = "TEST";
     uint8 public decimals = 18;

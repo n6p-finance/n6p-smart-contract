@@ -1,2 +1,7 @@
 frontend/
 frontend-app/
+# Foundry build and dependency folders
+lib/
+out/
+cache/
+broadcast/
