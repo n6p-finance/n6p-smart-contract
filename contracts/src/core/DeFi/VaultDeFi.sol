@@ -60,7 +60,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     using SafeERC20 for OZ_IERC20;
     using MathLib for uint256;
 
-    // ----- Constructor (for implementation contract; locks logic) -----
+    // ----- Constructor (for implementation contract; locks logic and store only state) -----
     constructor() {
         _disableInitializers(); // lock implementation contract
     }
@@ -989,6 +989,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
         emit FeeReport(management_fee, performance_fee_, strategist_fee, duration);
     }
 
+    // Note: this function requires the strategy to have already sent the gain + debt payment to the vault
     function report(uint256 gain, uint256 loss, uint256 _debtPayment) external returns (uint256) {
         require(strategies[msg.sender].activation > 0, "Vault: unknown reporter");
         // ensure reporter has tokens for distribution (gain + debt payment)
@@ -1041,6 +1042,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
         }
     }
 
+    // ----- Internal accounting functions -----
     function _reportLoss(address strategy, uint256 loss) internal {
         uint256 totalDebt_ = strategies[strategy].totalDebt;
         require(totalDebt_ >= loss, "Vault: loss > total debt");

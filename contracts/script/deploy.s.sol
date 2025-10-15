@@ -133,6 +133,9 @@ contract DeployScript is Script {
     ) external returns (address vault) {
         vm.startBroadcast();
 
+        // Deploy MockToken for testing
+        Vault v = new Vault();
+
         // Deploy implementation
         Vault vaultImpl = new Vault();
 
