@@ -28,6 +28,9 @@ The goal of NapFi is to combine intelligent DeFi yield optimization with creativ
 
 ### Architecture
 
+Diagram of VaultDeFi.sol:
+<img width="1257" height="2757" alt="diagram-export-10-17-2025-2_47_05-PM" src="https://github.com/user-attachments/assets/11c88596-5f44-4c57-b27b-40c0ece75ead" />
+
 The system architecture can be described as follows:
 
 * Users interact with the NapFi web interface to deposit assets.
