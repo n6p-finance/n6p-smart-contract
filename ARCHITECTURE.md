@@ -1,225 +1,245 @@
-Absolutely! Here’s a **clean, README-friendly rewrite** of your NapFi AI System Architecture, fully integrating RWA/DeFi modularity and Lunar Bot. I structured it for clarity, Markdown readability, and ease of understanding for developers or contributors.
+
+# NapFi Smart Contracts
+
+NapFi is an AI-powered decentralized finance (DeFi) and creative finance protocol built on Optimism.
+It provides smart contracts that allow users to deposit assets, earn optimized yields, and participate in creative vaults for tokenized assets such as music, art, or other creative projects.
 
 ---
 
-# NapFi AI System Architecture
+### Overview
 
-## Overview
+NapFi automates yield generation through modular vault and strategy contracts.
+It is designed to connect with an off-chain AI engine that analyzes yield data and suggests the most efficient strategy routes based on current market conditions and protocol risk levels.
 
-NapFi AI is a **hybrid RWA + DeFi yield aggregator** designed to optimize returns across both real-world tokenized assets (RWA) and on-chain DeFi protocols, separating concerns into **registry, vaults, strategies, AI decision modules, and automation**. This ensures flexibility, composability, and easier governance.
-
----
-
-## Core Components
-
-### 1. Registry
-
-* **Description:** Central registry that maintains a list of all active vaults and their associated strategies. Handles governance and lookup functionality.
-* **Responsibilities:**
-
-  * Tracks all RWA and DeFi vaults.
-  * Maps each vault to its approved strategies.
-  * Tags vaults with `VaultType` (RWA or DeFi).
-  * Provides lookup functions for aggregator vaults to discover active vaults and strategies.
-  * Handles access control for adding/updating vaults and strategies.
-
-### 2. Aggregator Vault
-
-* **Description:** Top-level user-facing contract that accepts deposits and manages routing to underlying vaults. Provides a unified ERC-4626 interface.
-* **Responsibilities:**
-
-  * Accepts user deposits and issues shares.
-  * Queries the registry to route funds to appropriate vaults:
-
-    * **ERC-7540 RWA vaults** for real-world tokenized assets.
-    * **ERC-4626 DeFi vaults** for liquid crypto yield assets.
-  * Aggregates TVL and share accounting across all vaults.
-  * Manages withdrawal requests by pulling funds from underlying vaults as needed.
-
-### 3. RWA Vault(s)
-
-* **Type:** ERC-7540
-* **Description:** Handles real-world tokenized assets (e.g., bonds, invoices, tokenized stocks) with **async deposit/withdrawal flows**.
-* **Responsibilities:**
-
-  * Accept deposits from aggregator vault.
-  * Track pending / claimable balances until RWA settles.
-  * Integrate with RWA strategies to generate yield.
-  * Report NAV (net asset value) to aggregator vault.
-
-### 4. DeFi Vault(s)
-
-* **Type:** ERC-4626
-* **Description:** Handles liquid DeFi protocols such as Aave, Curve, or Compound. Supports **synchronous deposits/withdrawals**.
-* **Responsibilities:**
-
-  * Accept deposits from aggregator vault.
-  * Route funds to one or more DeFi strategies for yield generation.
-  * Report TVL and share price back to aggregator vault.
-
-### 5. Strategies
-
-* **RWA Strategy:**
-
-  * Invests in tokenized real-world assets.
-  * Handles async claim and settlement flows.
-* **DeFi Strategy:**
-
-  * Interacts with on-chain DeFi protocols to earn yield.
-  * Supports synchronous harvests and returns funds to vault on request.
-* **Notes:**
-
-  * Strategies are modular and can be added or removed via the registry.
-  * Each vault may support multiple strategies with different risk/yield profiles.
-
-### 6. AI Decision Module
-
-* **Description:** Optional module that can influence allocation decisions based on market conditions, yield optimization, or risk parameters.
-* **Responsibilities:**
-
-  * Provide signals for aggregator vault to rebalance allocations.
-  * Suggest optimal vault or strategy distribution.
-
-### 7. Lunar Bot (Keeper / Automation Agent)
-
-* **Description:** Dedicated automation agent ensuring the system runs smoothly without manual intervention. Lunar Bot monitors vaults, strategies, and the aggregator vault to automate routine operations.
-* **Key Responsibilities:**
-
-  1. **Rebalancing Vaults**
-
-     * Detects imbalance between RWA and DeFi vault allocations.
-     * Executes fund redistribution automatically according to AI recommendations.
-  2. **RWA Claim Settlements**
-
-     * Monitors ERC-7540 vaults for pending claims or maturity events.
-     * Triggers `claim()` or settlement functions to update balances.
-  3. **DeFi Strategy Harvesting**
-
-     * Calls `harvest()` on DeFi strategies to collect yield.
-     * Updates vault share price and TVL after harvest.
-  4. **Automated Withdrawal Support**
-
-     * Pulls funds from strategies or vaults to fulfill aggregator withdrawals efficiently.
-     * Reduces latency for async RWA vaults.
-  5. **AI-Driven Allocation Execution**
-
-     * Interfaces with AI Decision Module to adjust allocations automatically.
-* **Integration:**
-
-  * Operates outside user-facing contracts but with privileged permissions.
-  * Works alongside AI module for optimal yield distribution.
-  * Can be extended for health checks, performance monitoring, or emergency actions.
-* **Benefits:**
-
-  * Reduces manual intervention.
-  * Ensures timely execution of strategy operations.
-  * Maintains optimal allocation across hybrid vaults.
-
-# NapFi AI Contracts & Interaction Table
-
-| Component / Contract   | Type / ERC Standard | Description / Responsibility                                                                                  | Interacts With / Controlled By                                  |
-| ---------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| **Registry**           | Internal / Custom   | Central registry for vaults and strategies. Maintains mapping, access control, and lookup for aggregator.     | Aggregator Vault, Lunar Bot                                     |
-| **Aggregator Vault**   | ERC-4626            | User-facing vault; routes deposits to underlying RWA or DeFi vaults, issues shares, manages withdrawals.      | Users, Registry, RWA Vaults, DeFi Vaults, Lunar Bot             |
-| **RWA Vault(s)**       | ERC-7540            | Handles tokenized real-world assets with async flows; reports NAV.                                            | Aggregator Vault, RWA Strategy, Lunar Bot                       |
-| **DeFi Vault(s)**      | ERC-4626            | Handles on-chain DeFi protocols; supports synchronous deposits/withdrawals; reports TVL/share price.          | Aggregator Vault, DeFi Strategy, Lunar Bot                      |
-| **RWA Strategy**       | Internal / Custom   | Implements real-world asset investment logic; async claim/settlement.                                         | RWA Vault, Lunar Bot                                            |
-| **DeFi Strategy**      | Internal / Custom   | Implements DeFi yield-generating logic; synchronous harvests and returns funds to vaults.                     | DeFi Vault, Lunar Bot                                           |
-| **AI Decision Module** | Internal / Custom   | Provides allocation signals for hybrid RWA + DeFi vaults.                                                     | Aggregator Vault, Lunar Bot                                     |
-| **Lunar Bot**          | Automation Agent    | Keeper/automation agent: rebalances vaults, harvests strategies, settles RWA claims, executes AI allocations. | Registry, Aggregator Vault, RWA Vaults, DeFi Vaults, Strategies |
+The goal of NapFi is to combine intelligent DeFi yield optimization with creative asset tokenization — forming a bridge between financial automation and the creative economy.
 
 ---
 
-## System Flow
+### Core Features
 
-1. **User Deposit**
-
-   * User approves aggregator vault to spend tokens.
-   * Calls `deposit()` on aggregator vault → receives shares.
-
-2. **Routing to Vaults**
-
-   * Aggregator queries registry for active vaults by type.
-   * Deposits routed:
-
-     * ERC-7540 → RWA vaults
-     * ERC-4626 → DeFi vaults
-
-3. **Strategy Allocation**
-
-   * Vaults allocate funds to approved strategies.
-   * Yield generated according to strategy logic:
-
-     * Async for RWA
-     * Synchronous for DeFi
-
-4. **Automated Operations (Lunar Bot)**
-
-   * Rebalances vaults.
-   * Executes RWA claims.
-   * Harvests DeFi strategies.
-   * Ensures vaults stay optimized per AI signals.
-
-5. **Withdrawal**
-
-   * User requests withdrawal.
-   * Aggregator pulls funds from vaults.
-   * Vaults may call strategies if needed.
-   * Tokens returned, shares burned.
-
-6. **NAV / Reporting**
-
-   * Vaults report TVL/NAV to aggregator.
-   * Aggregator aggregates data for UI and analytics.
+1. **Smart Vaults** – A modular vault system that manages user deposits, withdrawals, and yield strategies.
+2. **AI-Powered Allocation** – The off-chain AI engine provides data-driven strategy recommendations.
+3. **Multi-Protocol Compatibility** – Supports integrations with protocols like Aave, Compound, and Curve.
+4. **Creative Vaults (Phase 2)** – Tokenization of music or art using ERC-1155 and royalty payments via ERC-2981.
+5. **Upgradeable Architecture** – Built with OpenZeppelin for safety and future extensibility.
+6. **Optimized for L2** – Deployed on Optimism, Base, and Polygon to ensure low transaction costs and high efficiency.
 
 ---
 
-## Architecture Diagram
+### Architecture
+
+The system architecture can be described as follows:
+
+* Users interact with the NapFi web interface to deposit assets.
+* The **VaultDeFi.sol** contract holds user deposits and communicates with **StrategyRouter.sol**, which decides where to allocate funds.
+* The Strategy Router connects to protocol adapters such as AaveAdapter or CurveAdapter.
+* An off-chain AI service (built with Python and FastAPI) analyzes yield data and returns optimized allocation ratios.
+* The frontend, built in React with Thirdweb SDK and Tailwind, displays real-time performance data to users.
+
+Main components include:
+
+* VaultDeFi.sol – manages deposits, withdrawals, and yield accounting.
+* StrategyRouter.sol – routes funds between active strategies based on AI input.
+* Adapters – protocol connectors that handle interactions with DeFi platforms.
+* Creative Contracts – for future tokenized music or art vaults.
+
+---
+
+### Tech Stack
+
+Smart contracts are written in Solidity and tested using Foundry.
+Security relies on OpenZeppelin libraries and rigorous fuzz testing.
+The AI backend uses Python and FastAPI.
+Frontend development is based on React, Tailwind, Wagmi, and Thirdweb SDK.
+The protocol is deployed on Optimism and supports Base and Polygon.
+For data and file storage, NapFi uses IPFS and NFT.Storage.
+
+---
+
+### Folder Structure
+
+* **core**: VaultDeFi.sol, StrategyRouter.sol, and protocol adapters.
+* **creative**: MusicVaultFactory, RoyaltyDistributor, and ArtistProfileRegistry.
+* **utils**: helper contracts such as SafeMath and AccessControl.
+* **script**: deployment scripts for Foundry.
+* **test**: Foundry test files for vault and strategy logic.
+
+---
+
+### Setup and Deployment
+
+## 📁 Folder Structure
+
+```bash
+napfi-smartcontracts/
+├── src/
+│   ├── core/
+│   │   ├── VaultDeFi.sol                # Core vault logic for deposits & yield optimization
+│   │   ├── StrategyRouter.sol           # Handles strategy routing and allocation weights
+│   │   └── adapters/                    # Protocol adapters for composable integrations
+│   │       ├── AaveAdapter.sol
+│   │       ├── CompoundAdapter.sol
+│   │       └── CurveAdapter.sol
+│   ├── creative/
+│   │   ├── MusicVaultFactory.sol        # Deploys ERC1155-based music vaults
+│   │   ├── RoyaltyDistributor.sol       # Distributes ERC2981 royalties
+│   │   └── ArtistProfileRegistry.sol    # Maps artists to on-chain profiles
+│   └── utils/
+│       ├── SafeMath.sol
+│       ├── AccessControl.sol
+│       └── MockTokens.sol
+├── script/
+│   ├── DeployVault.s.sol                # Foundry deploy script for main vault
+│   └── SetupStrategies.s.sol            # Setup script to initialize protocol adapters
+├── test/
+│   ├── VaultTest.t.sol
+│   ├── StrategyRouterTest.t.sol
+│   └── MusicVaultTest.t.sol
+├── foundry.toml
+└── README.md
 
 ```
-                  ┌─────────────────────┐
-                  │   Registry Contract │
-                  │(vaults ↔ strategies)│
-                  └─────────┬──────────┘
-                            │
-                  ┌─────────▼───────────┐
-                  │   Aggregator Vault  │
-                  │   (ERC-4626)        │
-                  └─────────┬──────────┘
-            ┌───────────────┴───────────────────────┐───────────────────> flashloan (Check UniswapV2/V3/V4Pair.sol (swap function))
-            ▼                                       ▼
-┌───────────────┐                         ┌───────────────┐
-│ RWA Vault(s)  │                         │ DeFi Vault(s) │
-│ ERC-7540      │                         │ ERC-4626      │
-└─────┬─────────┘                         └─────┬─────────┘
-      ▼                                         ▼
-┌───────────────┐                         ┌───────────────┐
-│ RWA Strategy  │                         │ DeFi Strategy │
-└───────────────┘                         └───────────────┘
-      ▲                                       ▲
-      │                                       │
-      └─────────────── Lunar Bot ────────────┘
-          (automation / keeper operations)
+
+🟢 Initial Commit: Core vault + adapters
+🟣 v0.2 Commit: Added creative vault stack (MusicVaultFactory, RoyaltyDistributor)
+🧠 v0.3 Commit: AI integration microservice (NapFi Brain)
+
+⚙️ Setup & Deployment
+1. Prerequisites
+Make sure you have:
+
+bash
+Salin kode
+# Node.js v18+
+# Foundry (forge)
+# Python 3.10+ for AI microservice
+# MetaMask connected to Optimism RPC
+
+2️. Installation
+Clone the repository and install dependencies:
+
+bash
+Salin kode
+git clone https://github.com/napfi/napfi-smartcontracts.git
+cd napfi-smartcontracts
+forge install
+
+3️. Compile Contracts
+```
+forge build
 ```
 
+4️. Run Tests
+```
+forge test -vvv
+```
+
+5️. Deploy to Optimism Testnet
+Edit .env to include your keys:
+
+```
+OPTIMISM_RPC="https://optimism-sepolia.infura.io/v3/YOUR_API_KEY"
+PRIVATE_KEY="YOUR_PRIVATE_KEY"
+ETHERSCAN_API_KEY="YOUR_OPTIMISTIC_ETHERSCAN_KEY"
+```
+
+Then run:
+
+```
+forge script script/DeployVault.s.sol \
+  --rpc-url $OPTIMISM_RPC \
+  --private-key $PRIVATE_KEY \
+  --broadcast \
+  --verify
+```
+
+## AI Integration (NapFi Brain)
+NapFi uses an off-chain AI engine to enhance decision-making by analyzing:
+
+Historical APY and TVL trends
+
+Risk metrics from DeFi protocols
+
+Gas cost optimization
+
+Volatility-adjusted yield predictions
+
+Setup AI Engine
+```
+cd ai-engine
+pip install -r requirements.txt
+python app.py
+```
+
+### AI Integration
+
+NapFi includes a backend AI engine built with FastAPI.
+It provides three main functions:
+
+1. Yield prediction
+2. Risk scoring for DeFi protocols
+3. Strategy optimization suggestions
+
+Example API endpoints:
+
+* `/api/apy` returns predicted yields
+* `/api/strategy` provides allocation recommendations
+
+To run the AI engine locally, navigate to the AI folder and start the server with `python app.py`.
+
 ---
 
-## Key Principles
+### Creative Finance (Phase 2)
 
-* **Single Registry:** Centralized source of truth for vaults and strategies; supports both RWA and DeFi.
-* **Modularity:** Vaults, strategies, aggregator, and AI are separable and upgradeable.
-* **Unified Interface:** Aggregator vault exposes ERC-4626 to users.
-* **Async vs Sync Handling:** RWA vaults use ERC-7540; DeFi vaults use ERC-4626.
-* **Extensibility:** New vaults, strategies, or AI modules can be added without disrupting the system.
+In its second phase, NapFi will expand into the creative finance space.
+Users and artists will be able to:
+
+* Tokenize creative projects such as songs or artworks
+* Fund and stake into creative vaults
+* Receive automated royalty payments
+* Verify IP ownership through the Ethereum Attestation Service (EAS)
 
 ---
 
-## Future Improvements
+### Security
 
-* Dynamic AI-driven allocation between RWA and DeFi vaults.
-* Multi-vault aggregation for finer allocation.
-* Governance modules for vaults, strategies, and registry parameters.
-* Enhanced automation: auto-harvest and RWA claim settlement.
-* Gas optimizations for multi-vault operations.
+NapFi prioritizes safety and auditability:
 
+* Uses OpenZeppelin’s security modules such as AccessControl and Ownable
+* Performs fuzz and invariant testing using Foundry
+* Includes timelock mechanisms for upgrade governance
+* External audit planned before mainnet deployment
 
+---
+
+### Roadmap
+
+Phase 0: Prototype vault contracts – completed
+Phase 1: AI-integrated DeFi vault system – in development
+Phase 2: Creative vault system for tokenized assets – in research
+Phase 3: Full Layer 2 deployment with cross-chain vault support – planned
+
+---
+
+### Contributors
+
+Founder and Lead Developer: Asyam Jayanegara
+Smart Contract Developer: NapFi Labs
+Backend and AI Development: NapFi AI Team
+Frontend Design: NapFi Studio
+
+---
+
+### License
+
+NapFi Smart Contracts are released under the MIT License (© 2025 NapFi Labs).
+The codebase is open for use, modification, and distribution with attribution.
+
+---
+
+### Vision
+
+NapFi aims to merge intelligent financial systems with the creative economy.
+It is built to make DeFi smarter, more adaptive, and more human — where finance, AI, and art coexist within one decentralized ecosystem.
+
+---
