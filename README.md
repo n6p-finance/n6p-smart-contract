@@ -1,88 +1,245 @@
-# NapFi AI - Automated DeFi Yield Optimizer
 
-NapFi AI is an AI-powered DeFi protocol that automatically routes user funds to the most profitable and secure staking or yield farming opportunities across multiple blockchains.
+# NapFi Smart Contracts
 
-## Project Overview
+NapFi is an AI-powered decentralized finance (DeFi) and creative finance protocol built on Optimism.
+It provides smart contracts that allow users to deposit assets, earn optimized yields, and participate in creative vaults for tokenized assets such as music, art, or other creative projects.
 
-NapFi AI uses artificial intelligence to analyze and optimize yield farming strategies, allowing users to maximize their returns while minimizing risk. The protocol automatically allocates funds across different strategies based on their performance, risk profile, and market conditions.
+---
 
-## Key Components
+### Overview
 
-- **Controller**: Manages fund allocation between different strategies
-- **Vault**: Handles user deposits and withdrawals
-- **Strategies**: Implement specific yield farming strategies (Compound, Aave, etc.)
-- **AI Decision Module**: Makes allocation decisions based on risk/reward analysis
-- **Yield Optimizer**: Calculates optimal allocations based on APY and risk
-- **MCP Integration**: Uses Model Context Protocol for transparent AI decision-making
+NapFi automates yield generation through modular vault and strategy contracts.
+It is designed to connect with an off-chain AI engine that analyzes yield data and suggests the most efficient strategy routes based on current market conditions and protocol risk levels.
 
-## Recent Improvements
+The goal of NapFi is to combine intelligent DeFi yield optimization with creative asset tokenization — forming a bridge between financial automation and the creative economy.
 
-### Controller Rebalancing Fix
+---
 
-We identified and fixed an issue in the Controller's `_rebalance()` function where tokens withdrawn from strategies weren't being properly transferred to the Controller, preventing them from being deposited into other strategies during rebalancing.
+### Core Features
 
-#### The Issue:
-1. When the Controller called `strategy.withdraw(amount)`, the MockStrategy implementation simply decreased its internal `mockBalance` variable, but didn't actually transfer any tokens to the Controller.
-2. This meant that when the Controller tried to deposit tokens into strategies with deficit balances, it had no tokens available to deposit.
+1. **Smart Vaults** – A modular vault system that manages user deposits, withdrawals, and yield strategies.
+2. **AI-Powered Allocation** – The off-chain AI engine provides data-driven strategy recommendations.
+3. **Multi-Protocol Compatibility** – Supports integrations with protocols like Aave, Compound, and Curve.
+4. **Creative Vaults (Phase 2)** – Tokenization of music or art using ERC-1155 and royalty payments via ERC-2981.
+5. **Upgradeable Architecture** – Built with OpenZeppelin for safety and future extensibility.
+6. **Optimized for L2** – Deployed on Optimism, Base, and Polygon to ensure low transaction costs and high efficiency.
 
-#### Our Solution:
-1. We modified the Controller's `_rebalance()` function to properly handle token transfers during rebalancing:
-   - When withdrawing tokens from a strategy, we added code to mint tokens to the Controller to simulate the transfer
-   - When depositing tokens to a strategy, we added code to burn tokens from the Controller to simulate the transfer
+---
 
-2. These changes ensure that the Controller's balance is correctly updated during rebalancing, allowing it to properly redistribute funds between strategies.
+### Architecture
 
-#### Benefits of the Fix:
-1. The Controller can now properly rebalance funds between strategies
-2. Strategies with excess balances will have their excess funds withdrawn
-3. Strategies with deficit balances will receive the funds they need
-4. The total balance across all strategies remains consistent
+The system architecture can be described as follows:
 
-## Model Context Protocol (MCP) Integration
+* Users interact with the NapFi web interface to deposit assets.
+* The **VaultDeFi.sol** contract holds user deposits and communicates with **StrategyRouter.sol**, which decides where to allocate funds.
+* The Strategy Router connects to protocol adapters such as AaveAdapter or CurveAdapter.
+* An off-chain AI service (built with Python and FastAPI) analyzes yield data and returns optimized allocation ratios.
+* The frontend, built in React with Thirdweb SDK and Tailwind, displays real-time performance data to users.
 
-NapFi AI incorporates a simplified version of the Model Context Protocol to enhance transparency and verifiability of AI-driven allocation decisions.
+Main components include:
 
-### What is MCP?
+* VaultDeFi.sol – manages deposits, withdrawals, and yield accounting.
+* StrategyRouter.sol – routes funds between active strategies based on AI input.
+* Adapters – protocol connectors that handle interactions with DeFi platforms.
+* Creative Contracts – for future tokenized music or art vaults.
 
-Model Context Protocol is a framework that standardizes how AI models interact with blockchain data and smart contracts. In NapFi AI, we use MCP to:
+---
 
-1. **Document AI Decisions**: Store reasoning behind allocation decisions
-2. **Verify Decision Integrity**: Provide cryptographic proofs of decision-making
-3. **Standardize Data Access**: Use consistent formats for yield and risk data
+### Tech Stack
 
-### Simplified MCP Implementation
+Smart contracts are written in Solidity and tested using Foundry.
+Security relies on OpenZeppelin libraries and rigorous fuzz testing.
+The AI backend uses Python and FastAPI.
+Frontend development is based on React, Tailwind, Wagmi, and Thirdweb SDK.
+The protocol is deployed on Optimism and supports Base and Polygon.
+For data and file storage, NapFi uses IPFS and NFT.Storage.
 
-Our hackathon implementation includes:
+---
 
-- **MCP Oracle Interface**: Standardized way for our AI to interact with on-chain data
-- **Decision Verification**: Simple mechanism to verify AI allocation decisions
-- **Transparent Reasoning**: User-readable explanations for allocation changes
+### Folder Structure
 
-### Benefits for Users
+* **core**: VaultDeFi.sol, StrategyRouter.sol, and protocol adapters.
+* **creative**: MusicVaultFactory, RoyaltyDistributor, and ArtistProfileRegistry.
+* **utils**: helper contracts such as SafeMath and AccessControl.
+* **script**: deployment scripts for Foundry.
+* **test**: Foundry test files for vault and strategy logic.
 
-- **Trust**: Understand why funds are allocated to specific strategies
-- **Verification**: Verify that allocations follow the stated risk preferences
-- **Insights**: Access to the reasoning behind yield optimization decisions
+---
 
-## Development Approach
+### Setup and Deployment
 
-We follow Test-Driven Development (TDD) with the ZOMBIE method:
-
-- **Z**ero: Test with zero/empty values
-- **O**ne: Test with a single item
-- **M**any: Test with multiple items
-- **B**oundaries: Test edge cases
-- **I**nterfaces: Test interactions between components
-- **E**xceptions: Test error handling
-
-## Testing
-
-The project has comprehensive test coverage for all components. To run the tests:
+## 📁 Folder Structure
 
 ```bash
-forge test
+napfi-smartcontracts/
+├── src/
+│   ├── core/
+│   │   ├── VaultDeFi.sol                # Core vault logic for deposits & yield optimization
+│   │   ├── StrategyRouter.sol           # Handles strategy routing and allocation weights
+│   │   └── adapters/                    # Protocol adapters for composable integrations
+│   │       ├── AaveAdapter.sol
+│   │       ├── CompoundAdapter.sol
+│   │       └── CurveAdapter.sol
+│   ├── creative/
+│   │   ├── MusicVaultFactory.sol        # Deploys ERC1155-based music vaults
+│   │   ├── RoyaltyDistributor.sol       # Distributes ERC2981 royalties
+│   │   └── ArtistProfileRegistry.sol    # Maps artists to on-chain profiles
+│   └── utils/
+│       ├── SafeMath.sol
+│       ├── AccessControl.sol
+│       └── MockTokens.sol
+├── script/
+│   ├── DeployVault.s.sol                # Foundry deploy script for main vault
+│   └── SetupStrategies.s.sol            # Setup script to initialize protocol adapters
+├── test/
+│   ├── VaultTest.t.sol
+│   ├── StrategyRouterTest.t.sol
+│   └── MusicVaultTest.t.sol
+├── foundry.toml
+└── README.md
+
 ```
 
-## License
+🟢 Initial Commit: Core vault + adapters
+🟣 v0.2 Commit: Added creative vault stack (MusicVaultFactory, RoyaltyDistributor)
+🧠 v0.3 Commit: AI integration microservice (NapFi Brain)
 
-MIT
+⚙️ Setup & Deployment
+1. Prerequisites
+Make sure you have:
+
+bash
+Salin kode
+# Node.js v18+
+# Foundry (forge)
+# Python 3.10+ for AI microservice
+# MetaMask connected to Optimism RPC
+
+2️. Installation
+Clone the repository and install dependencies:
+
+bash
+Salin kode
+git clone https://github.com/napfi/napfi-smartcontracts.git
+cd napfi-smartcontracts
+forge install
+
+3️. Compile Contracts
+```
+forge build
+```
+
+4️. Run Tests
+```
+forge test -vvv
+```
+
+5️. Deploy to Optimism Testnet
+Edit .env to include your keys:
+
+```
+OPTIMISM_RPC="https://optimism-sepolia.infura.io/v3/YOUR_API_KEY"
+PRIVATE_KEY="YOUR_PRIVATE_KEY"
+ETHERSCAN_API_KEY="YOUR_OPTIMISTIC_ETHERSCAN_KEY"
+```
+
+Then run:
+
+```
+forge script script/DeployVault.s.sol \
+  --rpc-url $OPTIMISM_RPC \
+  --private-key $PRIVATE_KEY \
+  --broadcast \
+  --verify
+```
+
+## AI Integration (NapFi Brain)
+NapFi uses an off-chain AI engine to enhance decision-making by analyzing:
+
+Historical APY and TVL trends
+
+Risk metrics from DeFi protocols
+
+Gas cost optimization
+
+Volatility-adjusted yield predictions
+
+Setup AI Engine
+```
+cd ai-engine
+pip install -r requirements.txt
+python app.py
+```
+
+### AI Integration
+
+NapFi includes a backend AI engine built with FastAPI.
+It provides three main functions:
+
+1. Yield prediction
+2. Risk scoring for DeFi protocols
+3. Strategy optimization suggestions
+
+Example API endpoints:
+
+* `/api/apy` returns predicted yields
+* `/api/strategy` provides allocation recommendations
+
+To run the AI engine locally, navigate to the AI folder and start the server with `python app.py`.
+
+---
+
+### Creative Finance (Phase 2)
+
+In its second phase, NapFi will expand into the creative finance space.
+Users and artists will be able to:
+
+* Tokenize creative projects such as songs or artworks
+* Fund and stake into creative vaults
+* Receive automated royalty payments
+* Verify IP ownership through the Ethereum Attestation Service (EAS)
+
+---
+
+### Security
+
+NapFi prioritizes safety and auditability:
+
+* Uses OpenZeppelin’s security modules such as AccessControl and Ownable
+* Performs fuzz and invariant testing using Foundry
+* Includes timelock mechanisms for upgrade governance
+* External audit planned before mainnet deployment
+
+---
+
+### Roadmap
+
+Phase 0: Prototype vault contracts – completed
+Phase 1: AI-integrated DeFi vault system – in development
+Phase 2: Creative vault system for tokenized assets – in research
+Phase 3: Full Layer 2 deployment with cross-chain vault support – planned
+
+---
+
+### Contributors
+
+Founder and Lead Developer: Asyam Jayanegara
+Smart Contract Developer: NapFi Labs
+Backend and AI Development: NapFi AI Team
+Frontend Design: NapFi Studio
+
+---
+
+### License
+
+NapFi Smart Contracts are released under the MIT License (© 2025 NapFi Labs).
+The codebase is open for use, modification, and distribution with attribution.
+
+---
+
+### Vision
+
+NapFi aims to merge intelligent financial systems with the creative economy.
+It is built to make DeFi smarter, more adaptive, and more human — where finance, AI, and art coexist within one decentralized ecosystem.
+
+---
