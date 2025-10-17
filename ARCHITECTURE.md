@@ -6,8 +6,7 @@ Absolutely! Here’s a **clean, README-friendly rewrite** of your NapFi AI Syste
 
 ## Overview
 
-NapFi AI is a **hybrid RWA + DeFi yield aggregator** designed to optimize returns across both real-world tokenized assets (RWA) and on-chain DeFi protocols.
-The system follows a **modular architecture inspired by Yearn Finance**, separating concerns into **registry, vaults, strategies, AI decision modules, and automation**. This ensures flexibility, composability, and easier governance.
+NapFi AI is a **hybrid RWA + DeFi yield aggregator** designed to optimize returns across both real-world tokenized assets (RWA) and on-chain DeFi protocols, separating concerns into **registry, vaults, strategies, AI decision modules, and automation**. This ensures flexibility, composability, and easier governance.
 
 ---
 

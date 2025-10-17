@@ -90,6 +90,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     address public guardian;
     address public pendingGovernance;
 
+    // ----- Strategy management -----
     struct StrategyParams {
         uint256 performanceFee;
         uint256 activation;
@@ -102,11 +103,14 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
         uint256 totalLoss;
     }
 
+    // ----- Vault state -----
     mapping(address => StrategyParams) public strategies;
     address[MAXIMUM_STRATEGIES] public withdrawalQueue;
 
+    // Emergency state
     bool public emergencyShutdown;
 
+    // ----- Accounting state -----
     uint256 public depositLimit;
     uint256 public debtRatio;
     uint256 public totalIdle;
@@ -382,6 +386,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
         emit EmergencyShutdown(active);
     }
 
+    // Reorders the withdrawal queue. Null entries must be preserved and only existing strategies can be reordered.
     function setWithdrawalQueue(address[MAXIMUM_STRATEGIES] calldata queue) external onlyGovOrMgmt {
         // second-pass validation: preserve existing null zones and only reorder existing entries
         address[MAXIMUM_STRATEGIES] memory oldq = withdrawalQueue;
