@@ -20,12 +20,13 @@ contract MockStrategy is IStrategy {
 
     function delegatedAssets() external pure override returns (uint256) { return 0; }
     function estimatedTotalAssets() external pure override returns (uint256) { return 0; }
+
     function withdraw(uint256 _amount) external override returns (uint256 loss) {
         IERC20(want).transfer(vault, _amount);
         return 0;
     }
+
     function migrate(address _newStrategy) external override {}
     function emergencyExit() external pure override returns (bool) { return false; }
     function totalIdle() external pure override returns (uint256) { return 0; }
-    function totalDebt() external view override returns (uint256) { return totalDebt; }
 }

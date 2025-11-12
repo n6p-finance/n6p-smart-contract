@@ -993,7 +993,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
         emit FeeReport(management_fee, performance_fee_, strategist_fee, duration);
     }
-
+    
     // Note: this function requires the strategy to have already sent the gain + debt payment to the vault
     function report(uint256 gain, uint256 loss, uint256 _debtPayment) external returns (uint256) {
         require(strategies[msg.sender].activation > 0, "Vault: unknown reporter");

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 import "../../../src/core/DeFi/VaultDeFi.sol";
 
 contract MockToken is IERC20 {
@@ -74,6 +75,7 @@ contract MockStrategy {
 
 contract ConfigTest is Test {
     Vault public vault;
+    Vault public vaultImpl;
     MockToken public token;
     address public governance;
     address public management;
@@ -82,6 +84,7 @@ contract ConfigTest is Test {
     address public user;
 
     function setUp() public virtual {
+        console2.log("Vault initialized:", address(vault));
         console.log("=== Setting up test environment ===");
         governance = makeAddr("governance");
         management = makeAddr("management");
@@ -98,7 +101,13 @@ contract ConfigTest is Test {
         token = new MockToken();
         console.log("MockToken deployed at:", address(token));
 
-        vault = new Vault();
+        // Deploy vault implementation
+        vaultImpl = new Vault();
+        console.log("Vault implementation deployed at:", address(vaultImpl));
+
+        // Deploy vault proxy using Clones
+        address vaultProxy = Clones.clone(address(vaultImpl));
+        vault = Vault(vaultProxy);
         console.log("Vault deployed at:", address(vault));
 
         // Initialize vault
