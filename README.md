@@ -7,11 +7,12 @@ It provides smart contracts that allow users to deposit assets, earn optimized y
 **Deployment to Base Sepolia = https://sepolia.basescan.org/address/0x2340F9643C18CEbfd7b6042AD8e23B205B286D78#code**
 
 **Deployment Details:**
-=== Deployment Addresses ===
+---
+ **Deployment Addresses**
   Registry: 0x2340F9643C18CEbfd7b6042AD8e23B205B286D78
   Vault DeFi Implementation: 0x11761e6bDef98e8fa7216dEe36068eD922B24Aaa
 
-  === Configuration ===
+ **Configuration** 
   Governance: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
   Management: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
   Guardian: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
