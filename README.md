@@ -9,7 +9,7 @@ It provides smart contracts that allow users to deposit assets, earn optimized y
 **Deployment Details:**
 ---
  **Deployment Addresses**
-  Registry: 0x2340F9643C18CEbfd7b6042AD8e23B205B286D78
+  Registry: 0x2340F9643C18CEbfd7b6042AD8e23B205B286D78                                                                                                                                               
   Vault DeFi Implementation: 0x11761e6bDef98e8fa7216dEe36068eD922B24Aaa
 
  **Configuration** 
