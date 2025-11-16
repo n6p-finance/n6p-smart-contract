@@ -4,8 +4,9 @@
 NapFi is an AI-powered decentralized finance (DeFi) and creative finance protocol built on Optimism.
 It provides smart contracts that allow users to deposit assets, earn optimized yields, and participate in creative vaults for tokenized assets such as music, art, or other creative projects.
 
+---
 **Deployment to Base Sepolia = https://sepolia.basescan.org/address/0x2340F9643C18CEbfd7b6042AD8e23B205B286D78#code**
-
+---
 **Deployment Details:**
 ---
  **Deployment Addresses**
