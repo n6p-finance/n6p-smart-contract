@@ -181,8 +181,6 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     event UpdateRoleManager(address roleManager);
     event UpdateFutureRoleManager(address pendingRoleManager);
 
-    
-
     // ----- Modifiers -----
     modifier onlyGov() { require(msg.sender == governance, "Vault: gov only"); _; }
     modifier onlyGovOrMgmt() { require(msg.sender == governance || msg.sender == management, "Vault: gov/mgmt"); _; }

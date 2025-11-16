@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR AGPL-3.0
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/proxy/Clones.sol";
+
 interface IVaultRegistryView {
     function token() external view returns (address);
     function apiVersion() external view returns (string memory);
@@ -87,18 +89,9 @@ contract Registry {
         emit NewRelease(release_id, vault, IVaultRegistryView(vault).apiVersion());
     }
 
-    // EIP-1167 minimal proxy clone
+    // EIP-1167 minimal proxy clone using OpenZeppelin implementation
     function _clone(address implementation) internal returns (address instance) {
-        bytes20 targetBytes = bytes20(implementation);
-        assembly {
-            let clone := mload(0x40) // Get free memory pointer
-            mstore(clone, 0x3d602d80600a3d3981f3)
-            mstore(add(clone, 0x14), 0x363d3d373d3d3d363d73)
-            mstore(add(clone, 0x28), targetBytes) // Address of the implementation contract
-            mstore(add(clone, 0x3c), 0x5af43d82803e903d91602b57fd5bf3)
-            instance := create(0, clone, 0x37) // Deploys code stored in memory clone
-        }
-        require(instance != address(0), "clone failed");
+        return Clones.clone(implementation);
     }
 
     function _newProxyVault(

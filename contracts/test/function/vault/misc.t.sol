@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 import "./config.t.sol";
 
 contract MiscTest is ConfigTest {
@@ -174,7 +175,7 @@ contract MiscTest is ConfigTest {
         // Should not be able to deposit during shutdown
         token.mint(address(this), 10 ether);
         token.approve(address(vault), 10 ether);
-        vm.expectRevert("shutdown");
+        vm.expectRevert("Vault: shutdown");
         vault.deposit(10 ether, address(this));
         
         // Should still be able to withdraw

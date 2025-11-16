@@ -8,10 +8,17 @@ optimizer = true
 optimizer_runs = 200
 evm_version = "paris"
 via_ir = true
-rpc_endpoints = {sepolia = "https://sepolia.infura.io/v3/abecf4484c4043068cff2b738795c35a"}
+use_literal_content = true # use source code
+
 
 remappings = [
     "@openzeppelin/=lib/openzeppelin-contracts/",
     "openzeppelin-contracts/=lib/openzeppelin-contracts/",
     "forge-std/=lib/forge-std/src/"
 ]
+
+# Base Configuration
+eth-rpc-url = "https://sepolia.base.org"
+chain_id = 84532
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/cra$

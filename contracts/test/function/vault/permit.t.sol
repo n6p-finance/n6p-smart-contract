@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 import "./config.t.sol";
 
 contract PermitTest is ConfigTest {
@@ -74,7 +75,7 @@ contract PermitTest is ConfigTest {
         // this will return block.timestamp > deadline which it will fail
         bytes memory signature = new bytes(65);
         
-        vm.expectRevert("expired");
+        vm.expectRevert("Vault: permit expired");
         vault.permit(owner, spender, value, deadline, signature);
         
         console.log("Expired permit test passed");
@@ -92,7 +93,7 @@ contract PermitTest is ConfigTest {
         // Invalid signature
         bytes memory signature = hex"1234";
         
-        vm.expectRevert(bytes("siglen"));
+        vm.expectRevert("Vault: siglen");
         vault.permit(owner, spender, value, deadline, signature);
         
         console.log("Invalid signature test passed");
@@ -106,7 +107,7 @@ contract PermitTest is ConfigTest {
         uint256 deadline = block.timestamp + 1 days;
         bytes memory signature = new bytes(65);
         
-        vm.expectRevert("owner");
+        vm.expectRevert("Vault: owner 0");
         vault.permit(address(0), spender, value, deadline, signature);
         
         console.log("Zero owner permit test passed");
@@ -117,11 +118,11 @@ contract PermitTest is ConfigTest {
         
         bytes32 domainSeparator = vault.DOMAIN_SEPARATOR();
         
-        // Should match epected manual calculation
+        // Should match expected manual calculation - vault name is "TEST nVault"
         bytes32 expectedSeparator = keccak256(
             abi.encode(
                 vault.DOMAIN_TYPE_HASH(),
-                keccak256(bytes("napy Vault")),
+                keccak256(bytes("TEST nVault")),
                 keccak256(bytes("0.4.6")),
                 block.chainid,
                 address(vault)

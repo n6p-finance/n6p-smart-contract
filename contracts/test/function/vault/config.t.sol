@@ -185,9 +185,12 @@ contract ConfigTest is Test {
         
         console.log("Deploying new vault with custom name/symbol...");
         Vault newVault = new Vault();
-        console.log("New vault deployed at:", address(newVault));
+        // Must use a proxy clone for proper initialization
+        address newVaultProxy = Clones.clone(address(newVault));
+        Vault proxiedVault = Vault(newVaultProxy);
+        console.log("New vault proxy deployed at:", address(proxiedVault));
         
-        newVault.initialize(
+        proxiedVault.initialize(
             address(token),
             governance,
             rewards,
@@ -198,11 +201,11 @@ contract ConfigTest is Test {
         );
         console.log("New vault initialized with custom parameters");
 
-        assertEq(newVault.name(), "Custom Vault", "Custom name not set");
-        console.log(" Custom name set:", newVault.name());
+        assertEq(proxiedVault.name(), "Custom Vault", "Custom name not set");
+        console.log(" Custom name set:", proxiedVault.name());
         
-        assertEq(newVault.symbol(), "CUSTOM", "Custom symbol not set");
-        console.log(" Custom symbol set:", newVault.symbol());
+        assertEq(proxiedVault.symbol(), "CUSTOM", "Custom symbol not set");
+        console.log(" Custom symbol set:", proxiedVault.symbol());
         
         console.log("=== Vault name/symbol override test passed ===\n");
     }
@@ -211,7 +214,7 @@ contract ConfigTest is Test {
         console.log("=== Testing vault reinitialization protection ===");
         
         console.log("Attempting to reinitialize vault...");
-        vm.expectRevert("initialized");
+        vm.expectRevert("Initializable: contract is already initialized");
         vault.initialize(
             address(token),
             governance,
@@ -373,21 +376,9 @@ contract ConfigTest is Test {
         
         console.log("Testing exceeding maximum degradation...");
         vm.prank(governance);
-        try vault.setLockedProfitDegradation(maxDegradation + 1) {
-            fail("Expected revert but call succeeded");
-        } catch (bytes memory reason) {
-            // Check if it reverted with "deg" error
-            bytes memory degError = abi.encodeWithSignature("Error(string)", "deg");
-            if (keccak256(reason) == keccak256(degError)) {
-                console.log(" Correctly reverted with 'deg' error when exceeding max");
-            } else {
-                console.logBytes(reason);
-                // If it's a different error, re-throw it to see what's wrong
-                assembly {
-                    revert(add(32, reason), mload(reason))
-                }
-            }
-        }
+        vm.expectRevert("Vault: deg > coef");
+        vault.setLockedProfitDegradation(maxDegradation + 1);
+        console.log(" Correctly reverted when exceeding max");
         
         console.log("=== Locked profit degradation range test passed ===\n");
     }
