@@ -138,7 +138,7 @@ Clone the repository and install dependencies:
 
 bash
 Salin kode
-git clone https://github.com/napfi/napfi-smartcontracts.git
+git clone https://github.com/n6p-finance/n6p-smart-contract.git
 cd napfi-smartcontracts
 forge install
 
