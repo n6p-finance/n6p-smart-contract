@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT OR AGPL-3.0
 pragma solidity ^0.8.20;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20, IERC20 as OZ_IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {VaultHelpers} from "./VaultHelpers.sol";
 
 /**
  * @title Napy Token Vault (refactored)
@@ -181,11 +181,47 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     event UpdateRoleManager(address roleManager);
     event UpdateFutureRoleManager(address pendingRoleManager);
 
+    // ----- Custom Errors (for bytecode efficiency) -----
+    error BadTo();
+    error ZeroShares();
+    error ZeroAmount();
+    error ExcessiveLoss();
+    error UnknownStrategy();
+    error InsufficientBalance();
+    error InvalidShares();
+    error NotInQueue();
+    error QueueFull();
+    error NotAuthorized();
+    error InitAlready();
+    error BadRewards();
+    error TooLong();
+    error LimitNotMax();
+    error PermitExpired();
+    error OwnerZero();
+    error InvalidSig();
+    error SigLen();
+    error BadAmount();
+    error StrategyExit();
+    error RatioOverflow();
+    error MinMaxMismatch();
+    error NotGov();
+    error NotGovMgmt();
+    error NotAcc();
+    error NotRole();
+    error BadToken();
+    error NotPendRole();
+    error NotPendGov();
+    error DegOver();
+    error PerfFeeOver();
+    error MgmtFeeOver();
+    error AllowOver();
+    error AlreadyRevoked();
+
     // ----- Modifiers -----
-    modifier onlyGov() { require(msg.sender == governance, "Vault: gov only"); _; }
-    modifier onlyGovOrMgmt() { require(msg.sender == governance || msg.sender == management, "Vault: gov/mgmt"); _; }
-    modifier onlyAcc() { require(msg.sender == accountant, "Vault: acc only"); _; }
-    modifier onlyRoleManager() { require(msg.sender == roleManager, "Vault: role manager only"); _; }
+    modifier onlyGov() { if (msg.sender != governance) revert NotGov(); _; }
+    modifier onlyGovOrMgmt() { if (msg.sender != governance && msg.sender != management) revert NotGovMgmt(); _; }
+    modifier onlyAcc() { if (msg.sender != accountant) revert NotAcc(); _; }
+    modifier onlyRoleManager() { if (msg.sender != roleManager) revert NotRole(); _; }
 
     // ----- Initialization (replaces Vyper initialize external) -----
     function initialize(
@@ -197,8 +233,8 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
         address _guardian,
         address _management
     ) external initializer{
-        require(activation == 0, "Vault: already initialized");
-        require(_token != address(0), "Vault: token 0");
+        if (activation != 0) revert InitAlready();
+        if (_token == address(0)) revert BadToken();
 
         token = OZ_IERC20(_token);
 
@@ -295,7 +331,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     }
 
     function acceptRoleManager() external {
-        require(msg.sender == pendingRoleManager, "Vault: not pending role manager");
+        if (msg.sender != pendingRoleManager) revert NotPendRole();
         roleManager = msg.sender;
         emit UpdateRoleManager(msg.sender);
     }
@@ -306,7 +342,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     }
 
     function acceptGovernance() external {
-        require(msg.sender == pendingGovernance, "Vault: not pending governance");
+        if (msg.sender != pendingGovernance) revert NotPendGov();
         governance = msg.sender;
         emit UpdateGovernance(msg.sender);
     }
@@ -317,13 +353,13 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     }
 
     function setRewards(address _rewards) external onlyGov {
-        require(_rewards != address(0) && _rewards != address(this), "Vault: bad rewards");
+        if (_rewards == address(0) || _rewards == address(this)) revert BadRewards();
         rewards = _rewards;
         emit UpdateRewards(_rewards);
     }
 
     function setLockedProfitDegradation(uint256 degradation) external onlyGov {
-        require(degradation <= DEGRADATION_COEFFICIENT, "Vault: deg > coef");
+        if (degradation > DEGRADATION_COEFFICIENT) revert DegOver();
         lockedProfitDegradation = degradation;
         emit LockedProfitDegradationUpdated(degradation);
     }
@@ -331,7 +367,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     /// @notice Set the maximum time (seconds) over which profit fully unlocks.
     /// @dev Passing 0 sets lockedProfit to 0 and degradation to 0 for safety.
     function setProfitMaxUnlockTime(uint256 _time) external onlyGov {
-        require(_time <= SECS_PER_YEAR, "Vault: too long");
+        if (_time > SECS_PER_YEAR) revert TooLong();
         if (_time == 0) {
             // previously this set lockedProfit incorrectly; fix: set degradation = 0 and wipe lockedProfit
             lockedProfitDegradation = 0;
@@ -350,35 +386,35 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     function setDepositLimitModule(address _module, bool _override) external onlyGov {
         if (!_override) {
-            require(depositLimit == MAX_UINT256, "Vault: limit not max");
+            if (depositLimit != MAX_UINT256) revert LimitNotMax();
         }
         depositLimitModule = _module;
         emit UpdateDepositLimitModule(_module);
     }
 
     function setPerformanceFee(uint256 fee) external onlyGov {
-        require(fee <= MAX_BPS / 2, "Vault: pf > 50%");
+        if (fee > MAX_BPS / 2) revert PerfFeeOver();
         performanceFee = fee;
         emit UpdatePerformanceFee(fee);
     }
 
     function setManagementFee(uint256 fee) external onlyGov {
-        require(fee <= MAX_BPS, "Vault: mgf > MAX_BPS");
+        if (fee > MAX_BPS) revert MgmtFeeOver();
         managementFee = fee;
         emit UpdateManagementFee(fee);
     }
 
     function setGuardian(address _guardian) external {
-        require(msg.sender == guardian || msg.sender == governance, "Vault: guardian auth");
+        if (msg.sender != guardian && msg.sender != governance) revert NotAuthorized();
         guardian = _guardian;
         emit UpdateGuardian(_guardian);
     }
 
     function setEmergencyShutdown(bool active) external {
         if (active) {
-            require(msg.sender == guardian || msg.sender == governance, "Vault: auth");
+            if (msg.sender != guardian && msg.sender != governance) revert NotAuthorized();
         } else {
-            require(msg.sender == governance, "Vault: gov only");
+            if (msg.sender != governance) revert NotGov();
         }
         emergencyShutdown = active;
         emit EmergencyShutdown(active);
@@ -390,19 +426,19 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
         address[MAXIMUM_STRATEGIES] memory oldq = withdrawalQueue;
         for (uint256 i = 0; i < MAXIMUM_STRATEGIES; i++) {
             if (queue[i] == address(0)) {
-                require(oldq[i] == address(0), "Vault: cannot extend queue");
+                if (oldq[i] != address(0)) revert TooLong();
                 break;
             }
-            require(oldq[i] != address(0), "Vault: cannot add");
-            require(strategies[queue[i]].activation > 0, "Vault: unknown strategy");
+            if (oldq[i] == address(0)) revert TooLong();
+            if (strategies[queue[i]].activation == 0) revert UnknownStrategy();
             bool exists = false;
             for (uint256 j = 0; j < MAXIMUM_STRATEGIES; j++) {
                 if (queue[j] == address(0)) { exists = true; break; }
                 if (queue[i] == oldq[j]) { exists = true; }
                 if (j <= i) continue;
-                require(queue[i] != queue[j], "Vault: dup strategy");
+                if (queue[i] == queue[j]) revert UnknownStrategy();
             }
-            require(exists, "Vault: not exists in old queue");
+            if (!exists) revert TooLong();
             withdrawalQueue[i] = queue[i];
         }
         emit UpdateWithdrawalQueue(queue);
@@ -428,7 +464,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     // ----- ERC20 shares logic -----
     function _transfer(address from, address to, uint256 amount) internal {
-        require(to != address(0) && to != address(this), "Vault: bad to");
+        if (to == address(0) || to == address(this)) revert BadTo();
         balanceOf[from] -= amount; // underflow will revert in 0.8
         balanceOf[to] += amount;
         emit Transfer(from, to, amount);
@@ -442,7 +478,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
         uint256 allowed = allowance[from][msg.sender];
         if (allowed != type(uint256).max) {
-            require(allowed >= amount, "Vault: allowance");
+            if (allowed < amount) revert AllowOver();
             allowance[from][msg.sender] = allowed - amount;
             emit Approval(from, msg.sender, allowance[from][msg.sender]);
         }
@@ -474,8 +510,8 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     // ----- EIP-2612 permit -----
     function permit(address owner, address spender, uint256 value, uint256 deadline, bytes calldata signature) external returns (bool) {
-        require(owner != address(0), "Vault: owner 0");
-        require(deadline >= block.timestamp, "Vault: permit expired");
+        if (owner == address(0)) revert OwnerZero();
+        if (deadline < block.timestamp) revert PermitExpired();
 
         bytes32 digest = keccak256(
             abi.encodePacked(
@@ -487,7 +523,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
         (bytes32 r, bytes32 s, uint8 v) = _splitSig(signature);
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory == owner, "Vault: invalid sig");
+        if (signatory != owner) revert InvalidSig();
 
         allowance[owner][spender] = value;
         nonces[owner] += 1;
@@ -496,7 +532,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     }
 
     function _splitSig(bytes calldata sig) internal pure returns (bytes32 r, bytes32 s, uint8 v) {
-        require(sig.length == 65, "Vault: siglen");
+        if (sig.length != 65) revert SigLen();
         assembly {
             r := calldataload(sig.offset)
             s := calldataload(add(sig.offset, 32))
@@ -548,7 +584,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
             shares = amount;
         }
 
-        require(shares != 0, "Vault: zero shares");
+        if (shares == 0) revert ZeroShares();
         totalSupply = ts + shares;
         balanceOf[to] += shares;
         emit Transfer(address(0), to, shares);
@@ -592,12 +628,12 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     function redeemShares(uint256 shares, address recipient, address owner) external nonReentrant returns (uint256) {
         if (recipient == address(0)) recipient = msg.sender;
         if (owner == address(0)) owner = msg.sender;
-        require(shares > 0 && shares <= balanceOf[owner], "Vault: shares");
+        if (shares == 0 || shares > balanceOf[owner]) revert InvalidShares();
 
         if (owner != msg.sender) {
             uint256 allowed = allowance[owner][msg.sender];
             if (allowed != MAX_UINT256) {
-                require(allowed >= shares, "Vault: allowance < shares");
+                if (allowed < shares) revert AllowOver();
                 allowance[owner][msg.sender] = allowed - shares;
                 emit Approval(owner, msg.sender, allowance[owner][msg.sender]);
             }
@@ -638,7 +674,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
                 shares = _sharesForAmount(value + totalLoss);
             }
             // sanity: ensure losses aren't nonsensical
-            require(totalLoss <= (MAX_BPS * (value + totalLoss)) / MAX_BPS, "Vault: excess loss");
+            if (totalLoss > (MAX_BPS * (value + totalLoss)) / MAX_BPS) revert ExcessiveLoss();
         }
 
         totalSupply -= shares;
@@ -653,8 +689,8 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     function deposit(uint256 _amount, address recipient) external nonReentrant returns (uint256) {
         if (recipient == address(0)) recipient = msg.sender;
-        require(!emergencyShutdown, "Vault: shutdown");
-        require(recipient != address(this), "Vault: bad recipient");
+        if (emergencyShutdown) revert NotAuthorized();
+        if (recipient == address(this)) revert BadTo();
 
         uint256 amount = _amount;
         if (amount == MAX_UINT256) {
@@ -662,10 +698,10 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
             amount = MathLib.min(maxDep, OZ_IERC20(token).balanceOf(msg.sender));
         } else {
             if (depositLimit > 0) {
-                require(_totalAssets() + amount <= depositLimit, "Vault: deposit limit");
+                if (_totalAssets() + amount > depositLimit) revert BadAmount();
             }
         }
-        require(amount > 0, "Vault: zero amount");
+        if (amount == 0) revert ZeroAmount();
 
         uint256 shares = _issueSharesForAmount(recipient, amount);
         _safeTransferFrom(address(token), msg.sender, address(this), amount);
@@ -674,31 +710,31 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
         return shares;
     }
 
-    function mint(uint256 shares, address recipient) external nonReentrant returns (uint256) {
+    function mint(uint256 _shares, address recipient) external nonReentrant returns (uint256) {
         if (recipient == address(0)) recipient = msg.sender;
-        require(!emergencyShutdown, "Vault: shutdown");
-        require(recipient != address(this), "Vault: bad recipient");
-        require(shares > 0, "Vault: zero shares");
+        if (emergencyShutdown) revert NotAuthorized();
+        if (recipient == address(this)) revert BadTo();
+        if (_shares == 0) revert ZeroShares();
 
-        uint256 amount = _shareValue(shares);
+        uint256 amount = _shareValue(_shares);
         if (depositLimit > 0) {
-            require(_totalAssets() + amount <= depositLimit, "Vault: deposit limit");
+            if (_totalAssets() + amount > depositLimit) revert BadAmount();
         }
 
         _safeTransferFrom(address(token), msg.sender, address(this), amount);
         totalIdle += amount;
-        _issueSharesForAmount(recipient, shares);
-        emit Deposit(recipient, shares, amount);
+        _issueSharesForAmount(recipient, _shares);
+        emit Deposit(recipient, _shares, amount);
         return amount;
     }
 
     function withdraw(uint256 assets, address recipient, uint256 maxLoss) external nonReentrant returns (uint256) {
         if (recipient == address(0)) recipient = msg.sender;
-        require(maxLoss <= MAX_BPS, "Vault: maxLoss > MAX_BPS");
-        require(assets > 0, "Vault: zero assets");
+        if (maxLoss > MAX_BPS) revert BadAmount();
+        if (assets == 0) revert ZeroAmount();
 
         uint256 shares = _sharesForAmount(assets);
-        require(shares <= balanceOf[msg.sender], "Vault: insufficient shares");
+        if (shares > balanceOf[msg.sender]) revert InsufficientBalance();
 
         uint256 value = assets;
         uint256 vaultBalance = totalIdle;
@@ -731,7 +767,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
             if (value > vaultBalance) {
                 value = vaultBalance;
             }
-            require(totalLoss <= (maxLoss * value) / MAX_BPS, "Vault: excess loss");
+            if (totalLoss > (maxLoss * value) / MAX_BPS) revert ExcessiveLoss();
             shares = _sharesForAmount(value);
         }
 
@@ -768,15 +804,15 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
 
     // ----- Strategy management -----
     function addStrategy(address strategy, uint256 _debtRatio, uint256 minDebtPerHarvest, uint256 maxDebtPerHarvest, uint256 _performanceFee) external onlyGov {
-        require(withdrawalQueue[MAXIMUM_STRATEGIES - 1] == address(0), "Vault: queue full");
-        require(!emergencyShutdown, "Vault: shutdown");
-        require(strategy != address(0), "Vault: strategy 0");
-        require(strategies[strategy].activation == 0, "Vault: exists");
-        require(IStrategy(strategy).vault() == address(this), "Vault: wrong vault");
-        require(IStrategy(strategy).want() == address(token), "Vault: wrong want");
-        require(debtRatio + _debtRatio <= MAX_BPS, "Vault: ratio overflow");
-        require(minDebtPerHarvest <= maxDebtPerHarvest, "Vault: min > max");
-        require(_performanceFee <= MAX_BPS / 2, "Vault: pf > 50%");
+        if (withdrawalQueue[MAXIMUM_STRATEGIES - 1] != address(0)) revert QueueFull();
+        if (emergencyShutdown) revert NotAuthorized();
+        if (strategy == address(0)) revert BadAmount();
+        if (strategies[strategy].activation != 0) revert UnknownStrategy();
+        if (IStrategy(strategy).vault() != address(this)) revert BadAmount();
+        if (IStrategy(strategy).want() != address(token)) revert BadAmount();
+        if (debtRatio + _debtRatio > MAX_BPS) revert RatioOverflow();
+        if (minDebtPerHarvest > maxDebtPerHarvest) revert MinMaxMismatch();
+        if (_performanceFee > MAX_BPS / 2) revert PerfFeeOver();
 
         strategies[strategy] = StrategyParams({
             performanceFee: _performanceFee,
@@ -798,32 +834,32 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     }
 
     function updateStrategyDebtRatio(address strategy, uint256 _debtRatio) external onlyGovOrMgmt {
-        require(strategies[strategy].activation > 0, "Vault: unknown strategy");
-        require(!IStrategy(strategy).emergencyExit(), "Vault: strategy emergency exit");
+        if (strategies[strategy].activation == 0) revert UnknownStrategy();
+        if (!IStrategy(strategy).emergencyExit()) {} else revert StrategyExit();
         debtRatio -= strategies[strategy].debtRatio;
         strategies[strategy].debtRatio = _debtRatio;
         debtRatio += _debtRatio;
-        require(debtRatio <= MAX_BPS, "Vault: debtRatio > MAX_BPS");
+        if (debtRatio > MAX_BPS) revert RatioOverflow();
         emit StrategyUpdateDebtRatio(strategy, _debtRatio);
     }
 
     function updateStrategyMinDebtPerHarvest(address strategy, uint256 m) external onlyGovOrMgmt {
-        require(strategies[strategy].activation > 0, "Vault: unknown strategy");
-        require(strategies[strategy].maxDebtPerHarvest >= m, "Vault: min > max");
+        if (strategies[strategy].activation == 0) revert UnknownStrategy();
+        if (strategies[strategy].maxDebtPerHarvest < m) revert MinMaxMismatch();
         strategies[strategy].minDebtPerHarvest = m;
         emit StrategyUpdateMinDebtPerHarvest(strategy, m);
     }
 
     function updateStrategyMaxDebtPerHarvest(address strategy, uint256 m) external onlyGovOrMgmt {
-        require(strategies[strategy].activation > 0, "Vault: unknown strategy");
-        require(strategies[strategy].minDebtPerHarvest <= m, "Vault: max < min");
+        if (strategies[strategy].activation == 0) revert UnknownStrategy();
+        if (strategies[strategy].minDebtPerHarvest > m) revert MinMaxMismatch();
         strategies[strategy].maxDebtPerHarvest = m;
         emit StrategyUpdateMaxDebtPerHarvest(strategy, m);
     }
 
     function updateStrategyPerformanceFee(address strategy, uint256 pf) external onlyGov {
-        require(pf <= MAX_BPS / 2, "Vault: pf > 50%");
-        require(strategies[strategy].activation > 0, "Vault: unknown strategy");
+        if (pf > MAX_BPS / 2) revert PerfFeeOver();
+        if (strategies[strategy].activation == 0) revert UnknownStrategy();
         strategies[strategy].performanceFee = pf;
         emit StrategyUpdatePerformanceFee(strategy, pf);
     }
@@ -835,9 +871,9 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     }
 
     function migrateStrategy(address oldVersion, address newVersion) external onlyGov {
-        require(newVersion != address(0), "Vault: new 0");
-        require(strategies[oldVersion].activation > 0, "Vault: old unknown");
-        require(strategies[newVersion].activation == 0, "Vault: new exists");
+        if (newVersion == address(0)) revert BadAmount();
+        if (strategies[oldVersion].activation == 0) revert UnknownStrategy();
+        if (strategies[newVersion].activation != 0) revert UnknownStrategy();
 
         StrategyParams memory s = strategies[oldVersion];
         _revokeStrategy(oldVersion);
@@ -870,8 +906,8 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     }
 
     function revokeStrategy(address strategy) external {
-        require(msg.sender == strategy || msg.sender == governance || msg.sender == guardian, "Vault: revoke auth");
-        require(strategies[strategy].debtRatio != 0, "Vault: already revoked");
+        if (msg.sender != strategy && msg.sender != governance && msg.sender != guardian) revert NotAuthorized();
+        if (strategies[strategy].debtRatio == 0) revert AlreadyRevoked();
         _revokeStrategy(strategy);
     }
 
@@ -881,10 +917,10 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
         for (uint256 i = 0; i < MAXIMUM_STRATEGIES; i++) {
             address s = withdrawalQueue[i];
             if (s == address(0)) break;
-            require(s != strategy, "Vault: dup in queue");
+            if (s == strategy) revert UnknownStrategy();
             lastIdx++;
         }
-        require(lastIdx < MAXIMUM_STRATEGIES, "Vault: queue full");
+        if (lastIdx >= MAXIMUM_STRATEGIES) revert QueueFull();
         withdrawalQueue[MAXIMUM_STRATEGIES - 1] = strategy;
         _organizeWithdrawalQueue();
         emit StrategyAddedToQueue(strategy);
@@ -962,7 +998,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
         if (strategies[strategy].activation == block.timestamp) return 0;
 
         uint256 duration = block.timestamp - strategies[strategy].lastReport;
-        require(duration != 0, "Vault: same block");
+        if (duration == 0) revert ZeroAmount();
 
         if (gain == 0) return 0;
 
@@ -994,9 +1030,9 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     
     // Note: this function requires the strategy to have already sent the gain + debt payment to the vault
     function report(uint256 gain, uint256 loss, uint256 _debtPayment) external returns (uint256) {
-        require(strategies[msg.sender].activation > 0, "Vault: unknown reporter");
+        if (strategies[msg.sender].activation == 0) revert UnknownStrategy();
         // ensure reporter has tokens for distribution (gain + debt payment)
-        require(OZ_IERC20(token).balanceOf(msg.sender) >= gain + _debtPayment, "Vault: insufficient token balance");
+        if (OZ_IERC20(token).balanceOf(msg.sender) < gain + _debtPayment) revert InsufficientBalance();
 
         if (loss > 0) {
             _reportLoss(msg.sender, loss);
@@ -1048,7 +1084,7 @@ contract Vault is Initializable, UUPSUpgradeable, ReentrancyGuard {
     // ----- Internal accounting functions -----
     function _reportLoss(address strategy, uint256 loss) internal {
         uint256 totalDebt_ = strategies[strategy].totalDebt;
-        require(totalDebt_ >= loss, "Vault: loss > total debt");
+        if (totalDebt_ < loss) revert ExcessiveLoss();
         if (debtRatio != 0) {
             uint256 ratio_change = 0;
             if (totalDebt > 0) {

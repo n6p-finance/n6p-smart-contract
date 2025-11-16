@@ -6,8 +6,9 @@ out = "out"
 libs = ["lib"]
 optimizer = true
 optimizer_runs = 200
-evm_version = "paris"
+evm_version = "cancun"
 via_ir = true
+bytecode_hash = "none"
 use_literal_content = true # use source code
 
 

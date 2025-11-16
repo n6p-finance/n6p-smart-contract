@@ -44,13 +44,21 @@ contract CommonHealthCheck {
     mapping(address => address) public checks;
 
     modifier onlyGovernance() {
-        require(msg.sender == governance, "!authorized");
+        _onlyGovernance();
         _;
     }
 
     modifier onlyAuthorized() {
-        require(msg.sender == governance || msg.sender == management, "!authorized");
+        _onlyAuthorized();
         _;
+    }
+
+    function _onlyGovernance() internal view {
+        require(msg.sender == governance, "!authorized");
+    }
+
+    function _onlyAuthorized() internal view {
+        require(msg.sender == governance || msg.sender == management, "!authorized");
     }
 
     constructor() {

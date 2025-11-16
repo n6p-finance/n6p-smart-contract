@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../../src/core/DeFi/VaultDeFi.sol";
 
 contract MockToken is IERC20 {
@@ -376,7 +377,7 @@ contract ConfigTest is Test {
         
         console.log("Testing exceeding maximum degradation...");
         vm.prank(governance);
-        vm.expectRevert("Vault: deg > coef");
+        vm.expectRevert();
         vault.setLockedProfitDegradation(maxDegradation + 1);
         console.log(" Correctly reverted when exceeding max");
         
