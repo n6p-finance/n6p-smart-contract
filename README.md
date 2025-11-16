@@ -13,9 +13,9 @@ It provides smart contracts that allow users to deposit assets, earn optimized y
   Vault DeFi Implementation: 0x11761e6bDef98e8fa7216dEe36068eD922B24Aaa
 
  **Configuration** 
-  Governance: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
-  Management: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
-  Guardian: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
+  Governance: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D                                                                                                                                             
+  Management: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D                                                                                                                                             
+  Guardian: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D                                                                                                                                               
   Rewards: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
 
 ---
