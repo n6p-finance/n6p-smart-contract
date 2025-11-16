@@ -1,25 +1,23 @@
 [profile.default]
-auto_detect_solc = true
+auto_detect_solc = false
+solc = "0.8.30"
+
 src = "src"
 test = "test"
 out = "out"
 libs = ["lib"]
+
 optimizer = true
 optimizer_runs = 200
-evm_version = "cancun"
-via_ir = true
-bytecode_hash = "none"
-use_literal_content = true # use source code
-
+via_ir = false                     # IMPORTANT
+bytecode_hash = "ipfs"             # IMPORTANT
+evm_version = "paris"              # safest for Base
+use_literal_content = true
 
 remappings = [
     "@openzeppelin/=lib/openzeppelin-contracts/",
-    "openzeppelin-contracts/=lib/openzeppelin-contracts/",
     "forge-std/=lib/forge-std/src/"
 ]
 
-# Base Configuration
 eth-rpc-url = "https://sepolia.base.org"
 chain_id = 84532
-
-# See more config options https://github.com/foundry-rs/foundry/blob/master/cra$
