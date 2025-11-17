@@ -4,17 +4,19 @@
 NapFi is an AI-powered decentralized finance (DeFi) and creative finance protocol built on Optimism.
 It provides smart contracts that allow users to deposit assets, earn optimized yields, and participate in creative vaults for tokenized assets such as music, art, or other creative projects.
 
+---
 **Deployment to Base Sepolia = https://sepolia.basescan.org/address/0x2340F9643C18CEbfd7b6042AD8e23B205B286D78#code**
-
+---
 **Deployment Details:**
-=== Deployment Addresses ===
-  Registry: 0x2340F9643C18CEbfd7b6042AD8e23B205B286D78
+---
+ **Deployment Addresses**
+  Registry: 0x2340F9643C18CEbfd7b6042AD8e23B205B286D78                                                                                                                                               
   Vault DeFi Implementation: 0x11761e6bDef98e8fa7216dEe36068eD922B24Aaa
 
-  === Configuration ===
-  Governance: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
-  Management: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
-  Guardian: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
+ **Configuration** 
+  Governance: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D                                                                                                                                             
+  Management: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D                                                                                                                                             
+  Guardian: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D                                                                                                                                               
   Rewards: 0x005684aC7C737Bff821ECCb377cC46e5A7dcB60D
 
 ---
@@ -136,7 +138,7 @@ Clone the repository and install dependencies:
 
 bash
 Salin kode
-git clone https://github.com/napfi/napfi-smartcontracts.git
+git clone https://github.com/n6p-finance/n6p-smart-contract.git
 cd napfi-smartcontracts
 forge install
 
