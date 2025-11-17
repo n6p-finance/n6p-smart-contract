@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Vault ABI Demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>body{font-family:Arial,Helvetica,sans-serif;margin:20px}label{display:block;margin:6px 0}</style>
+</head>
+<body>
+  <h2>Vault ABI Demo (MetaMask required)</h2>
+  <p>Contract: <code id="address">0x11761e6bDef98e8fa7216dEe36068eD922B24Aaa</code></p>
+  <p id="status">Loading ABI…</p>
+
+  <button id="connect">Connect Wallet</button>
+  <div style="margin-top:10px">
+    <strong>Total Assets:</strong> <span id="totalAssets">-</span>
+  </div>
+
+  <hr />
+  <h3>Deposit (signed)</h3>
+  <label>Amount (in token smallest units): <input id="depositAmount" value="1000000000000000000" /></label>
+  <label>Recipient (optional): <input id="depositRecipient" placeholder="0x... (defaults to signer)" style="width:400px" /></label>
+  <button id="depositBtn">Send deposit()</button>
+  <div id="txStatus" style="margin-top:8px"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <script>
+    const ADDRESS = '0x11761e6bDef98e8fa7216dEe36068eD922B24Aaa';
+    let ABI;
+
+    async function loadAbi(){
+      try{
+        const res = await fetch('../abis/Vault.json');
+        const j = await res.json();
+        ABI = Array.isArray(j)? j : (j.abi || j);
+        document.getElementById('status').textContent = 'ABI loaded.';
+      }catch(e){
+        document.getElementById('status').textContent = 'Failed to load ABI: '+e;
+      }
+    }
+
+    loadAbi();
+
+    document.getElementById('connect').onclick = async ()=>{
+      if(!window.ethereum){ alert('Please install MetaMask (or another Web3 wallet)'); return; }
+      await window.ethereum.request({method:'eth_requestAccounts'});
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const contract = new ethers.Contract(ADDRESS, ABI, signer);
+      try{
+        const ta = await contract.totalAssets();
+        document.getElementById('totalAssets').textContent = ta.toString();
+        document.getElementById('status').textContent = 'Connected (read data)';
+        window.vaultContract = contract;
+      }catch(err){
+        document.getElementById('status').textContent = 'Read failed: '+err;
+      }
+    }
+
+    document.getElementById('depositBtn').onclick = async ()=>{
+      const c = window.vaultContract;
+      if(!c){ alert('Connect first'); return; }
+      const amount = document.getElementById('depositAmount').value;
+      let recipient = document.getElementById('depositRecipient').value;
+      if(!recipient){ recipient = await c.signer.getAddress(); }
+      try{
+        const tx = await c.deposit(amount, recipient);
+        document.getElementById('txStatus').textContent = 'Submitted tx: '+tx.hash;
+        await tx.wait();
+        document.getElementById('txStatus').textContent = 'Confirmed: '+tx.hash;
+      }catch(e){
+        document.getElementById('txStatus').textContent = 'Error: '+e;
+      }
+    }
+  </script>
+</body>
+</html>
