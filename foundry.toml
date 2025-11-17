@@ -3,13 +3,13 @@ src = "contracts/src"
 test = "contracts/test"
 out = "out"
 libs = ["lib"]
-solc_version = "0.8.20"
+solc_version = "0.8.30"
 optimizer = true
 via-ir = true
 optimizer_runs = 1
 evm_version = "shanghai"
-metadata = false
-metadata_hash = "none"  # disable ipfs
+metadata = true
+metadata_hash = "ipfs"
 use_literal_content = true # use source code
 
 remappings = [
