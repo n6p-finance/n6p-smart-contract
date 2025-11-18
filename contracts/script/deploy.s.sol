@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import "../src/core/DeFi/VaultDeFi.sol";
+import "../src/core/DeFi/UnifiedVault.sol";
 
 interface ITokenView {
     function symbol() external view returns (string memory);

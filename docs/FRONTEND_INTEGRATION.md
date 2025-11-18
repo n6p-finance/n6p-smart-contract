@@ -63,6 +63,72 @@ const release = await registry.read.releases([0]);
 const vaults = await registry.read.vaultsForRelease([release]);
 ```
 
+````markdown
+# N6P Finance Frontend Integration Guide
+
+## Overview
+
+This guide covers how to integrate N6P Finance smart contracts with your frontend application. After deployment, all contract ABIs and addresses will be available in the deployment configuration.
+
+## Setup
+
+### 1. Import Configuration
+
+```typescript
+import { BASE_SEPOLIA_CONFIG, getVaultAddress, getTokenConfig } from './deployment-config';
+
+// Or use the exported ABIs
+import * as ContractABIs from './abis';
+```
+
+### 2. Initialize Web3 Provider
+
+```typescript
+import { ethers } from 'ethers';
+
+// Using Viem (recommended for modern dApps)
+import { createPublicClient, http, createWalletClient } from 'viem';
+import { baseSepolia } from 'viem/chains';
+
+const publicClient = createPublicClient({
+  chain: baseSepolia,
+  transport: http(BASE_SEPOLIA_CONFIG.rpcUrl),
+});
+
+const walletClient = createWalletClient({
+  chain: baseSepolia,
+  transport: http(),
+});
+
+// Or using ethers.js (legacy)
+const provider = new ethers.JsonRpcProvider(BASE_SEPOLIA_CONFIG.rpcUrl);
+```
+
+## Contract Interactions
+
+### Registry Contract
+
+The Registry manages all vaults and releases in the N6P ecosystem.
+
+```typescript
+import { getContract } from 'viem';
+
+const registry = getContract({
+  address: BASE_SEPOLIA_CONFIG.addresses.registry,
+  abi: ContractABIs.Registry,
+  client: { public: publicClient, wallet: walletClient },
+});
+
+// Get all releases
+const releaseCount = await registry.read.releaseCount();
+
+// Get a specific release
+const release = await registry.read.releases([0]);
+
+// Get vault addresses for a token
+const vaults = await registry.read.vaultsForRelease([release]);
+```
+
 ### Vault Contracts (DeFi & RWA)
 
 Vaults are the main contracts users interact with for deposits and withdrawals.
@@ -72,7 +138,7 @@ Vaults are the main contracts users interact with for deposits and withdrawals.
 const vaultAddress = getVaultAddress('USDC');
 const vault = getContract({
   address: vaultAddress,
-  abi: ContractABIs.VaultDeFi,
+  abi: ContractABIs.UnifiedVault,
   client: { public: publicClient, wallet: walletClient },
 });
 
@@ -123,7 +189,7 @@ if (allowance < depositAmount) {
 // 3. Deposit into vault
 const depositTx = await walletClient.writeContract({
   address: vaultAddress,
-  abi: ContractABIs.VaultDeFi,
+  abi: ContractABIs.UnifiedVault,
   functionName: 'deposit',
   args: [depositAmount, userAddress],
   account: userAddress,
@@ -140,7 +206,7 @@ const shareAmount = ethers.parseUnits('100', 18); // 100 vault shares
 // Withdraw shares for assets
 const withdrawTx = await walletClient.writeContract({
   address: vaultAddress,
-  abi: ContractABIs.VaultDeFi,
+  abi: ContractABIs.UnifiedVault,
   functionName: 'withdraw',
   args: [
     shareAmount,      // max amount of assets to withdraw
@@ -171,7 +237,7 @@ const permitData = await getPermitSignature({
 // Use permit in transaction
 const tx = await walletClient.writeContract({
   address: vaultAddress,
-  abi: ContractABIs.VaultDeFi,
+  abi: ContractABIs.UnifiedVault,
   functionName: 'permitWithdraw',
   args: [
     shareAmount,
@@ -194,7 +260,7 @@ const tx = await walletClient.writeContract({
 // Deposit event
 const unsubscribe = publicClient.watchContractEvent({
   address: vaultAddress,
-  abi: ContractABIs.VaultDeFi,
+  abi: ContractABIs.UnifiedVault,
   eventName: 'Deposit',
   onLogs: (logs) => {
     logs.forEach(log => {
@@ -211,7 +277,7 @@ const unsubscribe = publicClient.watchContractEvent({
 // Strategy event
 publicClient.watchContractEvent({
   address: vaultAddress,
-  abi: ContractABIs.VaultDeFi,
+  abi: ContractABIs.UnifiedVault,
   eventName: 'StrategyChanged',
   onLogs: (logs) => {
     console.log('Strategy changed:', logs);
@@ -248,7 +314,7 @@ function formatPercent(numerator: bigint, denominator: bigint): string {
 async function getDepositFeeAmount(vaultAddress: string, amount: bigint): Promise<bigint> {
   const vault = getContract({
     address: vaultAddress,
-    abi: ContractABIs.VaultDeFi,
+    abi: ContractABIs.UnifiedVault,
     client: { public: publicClient },
   });
   
@@ -281,7 +347,7 @@ async function getLockedProfit(vaultAddress: string): Promise<{
 }> {
   const vault = getContract({
     address: vaultAddress,
-    abi: ContractABIs.VaultDeFi,
+    abi: ContractABIs.UnifiedVault,
     client: { public: publicClient },
   });
 
@@ -300,7 +366,7 @@ async function getLockedProfit(vaultAddress: string): Promise<{
 async function isVaultShutdown(vaultAddress: string): Promise<boolean> {
   const vault = getContract({
     address: vaultAddress,
-    abi: ContractABIs.VaultDeFi,
+    abi: ContractABIs.UnifiedVault,
     client: { public: publicClient },
   });
 
@@ -314,7 +380,7 @@ async function isVaultShutdown(vaultAddress: string): Promise<boolean> {
 async function getUserVaultBalance(vaultAddress: string, userAddress: string): Promise<bigint> {
   const vault = getContract({
     address: vaultAddress,
-    abi: ContractABIs.VaultDeFi,
+    abi: ContractABIs.UnifiedVault,
     client: { public: publicClient },
   });
 
@@ -325,7 +391,7 @@ async function getUserVaultBalance(vaultAddress: string, userAddress: string): P
 async function getUserVaultAssets(vaultAddress: string, userAddress: string): Promise<bigint> {
   const vault = getContract({
     address: vaultAddress,
-    abi: ContractABIs.VaultDeFi,
+    abi: ContractABIs.UnifiedVault,
     client: { public: publicClient },
   });
 
@@ -370,7 +436,7 @@ async function safeVaultDeposit(
     // Check vault is not shutdown
     const vault = getContract({
       address: vaultAddress,
-      abi: ContractABIs.VaultDeFi,
+      abi: ContractABIs.UnifiedVault,
       client: { public: publicClient },
     });
 
@@ -394,7 +460,7 @@ async function safeVaultDeposit(
     // Execute deposit
     const tx = await walletClient.writeContract({
       address: vaultAddress,
-      abi: ContractABIs.VaultDeFi,
+      abi: ContractABIs.UnifiedVault,
       functionName: 'deposit',
       args: [depositAmount, userAddress],
       account: userAddress,
@@ -423,7 +489,7 @@ VITE_RPC_URL=https://sepolia.base.org
 
 # Contract Addresses (update with actual deployed addresses)
 VITE_REGISTRY_ADDRESS=0x...
-VITE_VAULT_DEFI_IMPL=0x...
+VITE_UNIFIED_VAULT_IMPL=0x...
 VITE_VAULT_RWA_IMPL=0x...
 VITE_FEE_ORACLE=0x...
 VITE_HEALTH_CHECK=0x...
@@ -445,7 +511,7 @@ describe('Vault Integration', () => {
     // Deposit
     const depositTx = await walletClient.writeContract({
       address: vaultAddress,
-      abi: ContractABIs.VaultDeFi,
+      abi: ContractABIs.UnifiedVault,
       functionName: 'deposit',
       args: [depositAmount, userAddress],
       account: userAddress,
@@ -468,3 +534,5 @@ For detailed contract documentation, see:
 - `contracts/src/core/Registry.sol` - Registry contract source
 
 For questions or issues, open an issue in the GitHub repository.
+
+````

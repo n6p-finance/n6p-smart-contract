@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
-import "../../src/core/DeFi/VaultDeFi.sol";
+import "../../src/core/DeFi/UnifiedVault.sol";
 import "../../src/TokenTest/MockToken.sol";
 import "../../src/TokenTest/MockStrategy.sol";
 

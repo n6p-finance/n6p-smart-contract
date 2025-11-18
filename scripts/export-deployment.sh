@@ -23,7 +23,7 @@ jq '.abi' out/Registry.sol/Registry.json > "$ABI_DIR/Registry.json" 2>/dev/null 
 
 # Extract Vault ABI
 echo "Extracting Vault ABI..."
-jq '.abi' out/VaultDeFi.sol/Vault.json > "$ABI_DIR/Vault.json" 2>/dev/null || echo "Vault ABI not found"
+jq '.abi' out/UnifiedVault.sol/Vault.json > "$ABI_DIR/Vault.json" 2>/dev/null || echo "Vault ABI not found"
 
 # Extract CommonFeeOracle ABI
 echo "Extracting CommonFeeOracle ABI..."
@@ -50,7 +50,7 @@ cat > "$DEPLOYMENT_JSON" << 'EOF'
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "addresses": {
     "registry": "0x0000000000000000000000000000000000000000",
-    "vaultDeFiImplementation": "0x0000000000000000000000000000000000000000",
+    "unifiedVaultImplementation": "0x0000000000000000000000000000000000000000",
     "vaultRWAImplementation": "0x0000000000000000000000000000000000000000",
     "feeOracle": "0x0000000000000000000000000000000000000000",
     "healthCheck": "0x0000000000000000000000000000000000000000",

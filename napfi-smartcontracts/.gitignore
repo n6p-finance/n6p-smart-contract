@@ -1,0 +1,6 @@
+# Ignore build artifacts
+out/
+node_modules/
+.env
+
+*** End Patch

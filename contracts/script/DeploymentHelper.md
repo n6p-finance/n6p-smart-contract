@@ -98,7 +98,7 @@ contract DeploymentHelper is Script {
             deployed := create(0, add(bytecode, 32), mload(bytecode))
         }
         require(deployed != address(0), "Vault implementation deployment failed");
-        recordDeployment("VaultDeFi", deployed, "VaultImplementation");
+        recordDeployment("UnifiedVault", deployed, "VaultImplementation");
         return deployed;
     }
     
@@ -176,5 +176,5 @@ bytes memory bytecode = type(Registry).creationCode;
 
 
 interface Vault {
-    // Placeholder - actual interface from VaultDeFi.sol
+    // Placeholder - actual interface from UnifiedVault.sol
 }

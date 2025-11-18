@@ -31,14 +31,14 @@ The goal of NapFi is to combine intelligent DeFi yield optimization with creativ
 The system architecture can be described as follows:
 
 * Users interact with the NapFi web interface to deposit assets.
-* The **VaultDeFi.sol** contract holds user deposits and communicates with **StrategyRouter.sol**, which decides where to allocate funds.
+* The **UnifiedVault.sol** contract holds user deposits and communicates with **StrategyRouter.sol**, which decides where to allocate funds.
 * The Strategy Router connects to protocol adapters such as AaveAdapter or CurveAdapter.
 * An off-chain AI service (built with Python and FastAPI) analyzes yield data and returns optimized allocation ratios.
 * The frontend, built in React with Thirdweb SDK and Tailwind, displays real-time performance data to users.
 
 Main components include:
 
-* VaultDeFi.sol – manages deposits, withdrawals, and yield accounting.
+* UnifiedVault.sol – manages deposits, withdrawals, and yield accounting.
 * StrategyRouter.sol – routes funds between active strategies based on AI input.
 * Adapters – protocol connectors that handle interactions with DeFi platforms.
 * Creative Contracts – for future tokenized music or art vaults.
@@ -58,7 +58,7 @@ For data and file storage, NapFi uses IPFS and NFT.Storage.
 
 ### Folder Structure
 
-* **core**: VaultDeFi.sol, StrategyRouter.sol, and protocol adapters.
+* **core**: UnifiedVault.sol, StrategyRouter.sol, and protocol adapters.
 * **creative**: MusicVaultFactory, RoyaltyDistributor, and ArtistProfileRegistry.
 * **utils**: helper contracts such as SafeMath and AccessControl.
 * **script**: deployment scripts for Foundry.
@@ -74,7 +74,7 @@ For data and file storage, NapFi uses IPFS and NFT.Storage.
 napfi-smartcontracts/
 ├── src/
 │   ├── core/
-│   │   ├── VaultDeFi.sol                # Core vault logic for deposits & yield optimization
+│   │   ├── UnifiedVault.sol                # Core vault logic for deposits & yield optimization
 │   │   ├── StrategyRouter.sol           # Handles strategy routing and allocation weights
 │   │   └── adapters/                    # Protocol adapters for composable integrations
 │   │       ├── AaveAdapter.sol

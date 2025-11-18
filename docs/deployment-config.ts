@@ -13,7 +13,7 @@ export const BASE_SEPOLIA_CONFIG = {
   // Deployment Addresses (Update after deployment)
   addresses: {
     registry: "0x0000000000000000000000000000000000000000",
-    vaultDeFiImplementation: "0x0000000000000000000000000000000000000000",
+    unifiedVaultImplementation: "0x0000000000000000000000000000000000000000",
     vaultRWAImplementation: "0x0000000000000000000000000000000000000000",
     feeOracle: "0x0000000000000000000000000000000000000000",
     healthCheck: "0x0000000000000000000000000000000000000000",
@@ -116,7 +116,7 @@ VITE_RPC_URL="${config.rpcUrl}"
 
 # Contract Addresses
 VITE_REGISTRY_ADDRESS="${config.addresses.registry}"
-VITE_VAULT_DEFI_IMPL="${config.addresses.vaultDeFiImplementation}"
+VITE_UNIFIED_VAULT_IMPL="${config.addresses.unifiedVaultImplementation}"
 VITE_VAULT_RWA_IMPL="${config.addresses.vaultRWAImplementation}"
 VITE_FEE_ORACLE="${config.addresses.feeOracle}"
 VITE_HEALTH_CHECK="${config.addresses.healthCheck}"

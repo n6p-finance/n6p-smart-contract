@@ -40,7 +40,7 @@ The project starts as a yield and DEX aggregator, evolves into a creative yield 
 
 **Key Components:**
 
-* **VaultDeFi.sol** for deposit, withdrawal, and rebalancing
+* **UnifiedVault.sol** for deposit, withdrawal, and rebalancing
 * **StrategyRouter.sol** for multi-protocol allocation
 * **Adapters:** Aave, Compound, Curve, Balancer, and Uniswap V3
 * **AI Optimizer:** Off-chain microservice (FastAPI, Python) that learns from APY and TVL histories to predict optimal allocations

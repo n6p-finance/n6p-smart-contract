@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "forge-std/console2.sol";
 import "../src/core/Registry.sol";
-import "../src/core/DeFi/VaultDeFi.sol";
+import "../src/core/DeFi/UnifiedVault.sol";
 
 /**
  * @title Base Sepolia Deployment Script
@@ -27,7 +27,7 @@ contract DeployBaseSepolia is Script {
     
     struct DeployedAddresses {
         address registry;
-        address vaultDeFiImpl;
+        address unifiedVaultImpl;
     }
     
     // State variables
@@ -57,9 +57,9 @@ contract DeployBaseSepolia is Script {
         console2.log("1. Deploying Registry...");
         deployed.registry = deployRegistry();
         
-        // 2. Deploy Vault Implementation (DeFi)
-        console2.log("2. Deploying Vault DeFi Implementation...");
-        deployed.vaultDeFiImpl = deployVaultDeFi();
+        // 2. Deploy Unified Vault Implementation
+        console2.log("2. Deploying UnifiedVault Implementation...");
+        deployed.unifiedVaultImpl = deployUnifiedVault();
         
         vm.stopBroadcast();
         
@@ -74,16 +74,16 @@ contract DeployBaseSepolia is Script {
         return address(registry);
     }
     
-    function deployVaultDeFi() internal returns (address) {
+    function deployUnifiedVault() internal returns (address) {
         Vault vaultImpl = new Vault();
-        console2.log("Vault DeFi Implementation deployed at:", address(vaultImpl));
+        console2.log("UnifiedVault Implementation deployed at:", address(vaultImpl));
         return address(vaultImpl);
     }
     
     function exportDeploymentData() internal view {
         console2.log("\n=== Deployment Addresses ===");
         console2.log("Registry:", deployed.registry);
-        console2.log("Vault DeFi Implementation:", deployed.vaultDeFiImpl);
+        console2.log("UnifiedVault Implementation:", deployed.unifiedVaultImpl);
         console2.log("");
         console2.log("=== Configuration ===");
         console2.log("Governance:", config.governance);

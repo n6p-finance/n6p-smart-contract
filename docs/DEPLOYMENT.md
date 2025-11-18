@@ -61,7 +61,7 @@ contracts/
 ├── src/
 │   ├── core/
 │   │   ├── Registry.sol
-│   │   ├── DeFi/VaultDeFi.sol
+│   │   ├── DeFi/UnifiedVault.sol
 │   │   └── RWA/VaultRWA.sol
 │   ├── BaseStrategy.sol
 │   ├── CommonFeeOracle.sol
@@ -162,7 +162,7 @@ RPC: https://sepolia.base.org
 
 Transactions:
   [1] Registry deployed at: 0x...
-  [2] VaultDeFi deployed at: 0x...
+  [2] UnifiedVault deployed at: 0x...
   [3] VaultRWA deployed at: 0x...
   [4] CommonFeeOracle deployed at: 0x...
   [5] HealthCheckOverall deployed at: 0x...
@@ -189,7 +189,7 @@ contract DeployBaseSepolia is Script {
         
         // 3. Deploy contracts
         deployed.registry = deployRegistry();
-        deployed.vaultDeFiImpl = deployVaultDeFi();
+        deployed.unifiedVaultImpl = deployUnifiedVault();
         // ... more deployments
         
         // 4. Stop broadcast
@@ -261,7 +261,7 @@ Update `deployment-config.ts`:
 export const BASE_SEPOLIA_CONFIG = {
   addresses: {
     registry: "0x...",  // From deployment output
-    vaultDeFiImplementation: "0x...",
+    unifiedVaultImplementation: "0x...",
     vaultRWAImplementation: "0x...",
     feeOracle: "0x...",
     healthCheck: "0x...",

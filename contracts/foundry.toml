@@ -9,9 +9,9 @@ libs = ["lib"]
 
 optimizer = true
 optimizer_runs = 200
-via_ir = false                     # IMPORTANT
+via_ir = true                     # IMPORTANT - enable IR to avoid "stack too deep" in complex files
 bytecode_hash = "ipfs"             # IMPORTANT
-evm_version = "paris"              # safest for Base
+evm_version = "cancun"              # required for newer OZ Bytes.mcopy
 use_literal_content = true
 
 remappings = [

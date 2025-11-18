@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../../src/core/DeFi/VaultDeFi.sol";
+import "../../../src/core/DeFi/UnifiedVault.sol";
 
 contract MockToken is IERC20 {
     string public name = "Test Token";
