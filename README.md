@@ -93,19 +93,29 @@ napfi-smartcontracts/
 ├── src/
 │   ├── core/
 │   │   ├── VaultDeFi.sol                # Core vault logic for deposits & yield optimization
-│   │   ├── StrategyRouter.sol           # Handles strategy routing and allocation weights
-│   │   └── adapters/                    # Protocol adapters for composable integrations
+│   │   ├── VaultHelpers.sol
+│   │   └── adapters/                    # I Havent made adapter but do ERC-4626 complienece from here? or BaseStrategy.sol? 
 │   │       ├── AaveAdapter.sol
 │   │       ├── CompoundAdapter.sol
 │   │       └── CurveAdapter.sol
-│   ├── creative/
-│   │   ├── MusicVaultFactory.sol        # Deploys ERC1155-based music vaults
-│   │   ├── RoyaltyDistributor.sol       # Distributes ERC2981 royalties
-│   │   └── ArtistProfileRegistry.sol    # Maps artists to on-chain profiles
-│   └── utils/
-│       ├── SafeMath.sol
-│       ├── AccessControl.sol
-│       └── MockTokens.sol
+│   │   └── Registry.sol
+│   └── interfaces/                      # Havent implemented any of this
+│       ├── IERC4626.sol
+│       ├── IERC7540.sol
+│       └── IERC7575.sol
+│       └── IFeeAccepted.sol
+│       └── IHealthCheck.sol
+│       └── IStrategyAPI.sol
+│       └── IVaultAPI.sol
+│   └── utils/                           # Still no idea what to do
+│   └── Oracle/   
+│       └── PriceOracle.sol              # Still not implementing any oracle
+│       └── YieldOracle.sol
+│   └── TokenTest/
+│   └── security/
+│   └── BaseStrategy.sol
+│   └── CommonFeeOracle.sol
+│   └── HealthCheckOverall.sol
 ├── script/
 │   ├── DeployVault.s.sol                # Foundry deploy script for main vault
 │   └── SetupStrategies.s.sol            # Setup script to initialize protocol adapters
