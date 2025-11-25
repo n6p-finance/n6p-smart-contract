@@ -9,7 +9,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { usePublicClient, useWalletClient } from 'wagmi';
 import { getContract } from 'viem';
-import { BASE_SEPOLIA_CONFIG, getVaultAddress } from '../deployment-config';
+import { BASE_SEPOLIA_CONFIG, getVaultAddress } from '../docs/deployment-config';
 import * as ContractABIs from '../abis';
 
 // ============================================================================

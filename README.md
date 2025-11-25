@@ -92,38 +92,49 @@ For data and file storage, NapFi uses IPFS and NFT.Storage.
 napfi-smartcontracts/
 ├── src/
 │   ├── core/
-│   │   ├── DeFi  
-│   │   │   ├── UnifiedVault.sol                # Core vault logic for deposits & yield optimization
-│   │   │   ├── VaultHelpers.sol
-│   │   └── adapters/                    # I Havent made adapter but do ERC-4626 complienece from here? or BaseStrategy.sol? 
-│   │       ├── AaveAdapter.sol
-│   │       ├── CompoundAdapter.sol
-│   │       └── CurveAdapter.sol
-│   │   └── Registry.sol
-│   └── interfaces/                      # Havent implemented any of this
-│       ├── IERC4626.sol
-│       ├── IERC7540.sol
-│       └── IERC7575.sol
-│       └── IFeeAccepted.sol
-│       └── IHealthCheck.sol
-│       └── IStrategyAPI.sol
-│       └── IVaultAPI.sol
-│   └── utils/                           # Still no idea what to do
-│   └── Oracle/   
-│       └── PriceOracle.sol              # Still not implementing any oracle
-│       └── YieldOracle.sol
-│   └── TokenTest/
-│   └── security/
-│   └── BaseStrategy.sol
-│   └── CommonFeeOracle.sol
-│   └── HealthCheckOverall.sol
+│   │   ├── DeFi
+│   │   │   ├── UnifiedVault.sol                # Core vault logic (ERC4626 vault) - EMPTY STUB
+│   │   │   ├── VaultHelpers.sol                # Utility/helpers for vault
+│   │   ├── adapters/
+│   │   │   ├── AaveAdapter.sol                 # Adapter to deposit into Aave
+│   │   │   ├── CompoundAdapter.sol             # Adapter to deposit into Compound
+│   │   │   ├── CurveAdapter.sol                # Adapter to deposit into Curve
+│   │   ├── Registry.sol                        # Manages strategies
+│   ├── interfaces/
+│   │   ├── IERC4626.sol                        # ERC-4626 interface (import from OpenZeppelin if needed)
+│   │   ├── IERC7540.sol                        # Empty stub, later for solvable tokenization
+│   │   ├── IERC7575.sol                        # Empty stub, for RWA-like tokens
+│   │   ├── IFeeAccepted.sol                    # Empty stub, fee info from strategies
+│   │   ├── IHealthCheck.sol                    # Empty stub, inspired by Yearn health check
+│   │   ├── IStrategyAPI.sol                    # Empty stub, for strategy lifecycle interfaces
+│   │   ├── IVaultAPI.sol                       # Empty stub, vault external API interface
+│   ├── strategy/
+│   │   ├── BaseStrategy.sol                    # Abstract base class for all strategies
+│   │   └── RWAStrategy.sol                     # Example RWA strategy with KYC/Compliance hooks
+│   ├── Oracle/
+│   │   ├── PriceOracle.sol                     # Mock oracle for asset prices
+│   │   └── YieldOracle.sol                     # Oracle returning strategy APY info
+│   ├── utils/
+│   │   ├── CommonFeeOracle.sol                 # Computes fee on strategy interest
+│   │   ├── SafeERC20.sol                       # Import from OZ or leave stub
+│   │   ├── Math.sol                            # Math helpers for fixed point ops
+│   ├── security/
+│   │   ├── HealthCheckOverall.sol              # A Yearn-inspired safety controller
+│   │   ├── ReentrancyGuard.sol                 # Import safe version from OZ
+│   ├── TokenTest/
+│   │   └── MockToken.sol                       # For local testing
 ├── script/
-│   ├── DeployVault.s.sol                # Foundry deploy script for main vault
-│   └── SetupStrategies.s.sol            # Setup script to initialize protocol adapters
+│   ├── DeployVault.s.sol                       # Foundry deployment script
+│   └── SetupStrategies.s.sol                   # Script to register strategies in registry
 ├── test/
-│   ├── VaultTest.t.sol
-│   ├── StrategyRouterTest.t.sol
-│   └── MusicVaultTest.t.sol
+│   ├── VaultTest.t.sol                         # Basic deposit/withdraw tests
+│   ├── StrategyRouterTest.t.sol                # Registry logic testing
+│   └── RWAStrategyTest.t.sol                   # Test KYC logic for mock RWA strategy
+├── constants/
+│   └── Addresses.sol                           # Hardcoded protocol addresses
+├── docs/
+│   ├── ARCHITECTURE.md                         # Architecture diagrams (empty placeholder)
+│   └── WHITEPAPER.md                           # Short vault thesis (empty placeholder)
 ├── foundry.toml
 └── README.md
 
