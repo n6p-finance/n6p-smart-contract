@@ -1,452 +1,406 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/*
-    AggregatorVaultAutoRebalance
-    ---------------------------------------
-    ✔ ERC4626-like aggregator
-    ✔ Multi-strategy vault (idle + strategies)
-    ✔ Automatic PUSH allocation
-    ✔ NEW: Automatic PULL rebalancing
-    ✔ NEW: Public rebalance() function
-    ✔ Fully dynamic target ratios
-
-    This version finally behaves like:
-        - Yearn v2 Vault
-        - Beefy Strategies w/ allocators
-        - Enzyme yield allocator
-*/
-
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-
-/* ----------------------------- ERC4626 Minimal ----------------------------- */
-interface IERC4626Minimal {
-    event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
-    event Withdraw(address indexed caller, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
-
-    function asset() external view returns (address);
-    function totalAssets() external view returns (uint256);
-
-    function convertToShares(uint256 assets) external view returns (uint256);
-    function convertToAssets(uint256 shares) external view returns (uint256);
-
-    function deposit(uint256 assets, address receiver) external returns (uint256 shares);
-    function mint(uint256 shares, address receiver) external returns (uint256 assets);
-    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);
-    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);
-}
-
-/* --------------------------- Strategy Interface ---------------------------- */
-// Replace this and Use Aave v2 Strategy interface as base
+/* ---------- Minimal Strategy Interface ---------- */
 interface IStrategy {
     function want() external view returns (address);
-    function vault() external view returns (address);
-    function withdraw(uint256 amount) external returns (uint256 actual);
+    function withdraw(uint256 amount) external returns (uint256);
     function estimatedTotalAssets() external view returns (uint256);
     function isActive() external view returns (bool);
 }
 
-/* ------------------------------- Ownable ---------------------------------- */
-abstract contract SimpleOwnable {
-    address public owner;
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    constructor(address initialOwner) {
-        require(initialOwner != address(0), "owner zero");
-        owner = initialOwner;
-        emit OwnershipTransferred(address(0), initialOwner);
-    }
-    modifier onlyOwner() { require(msg.sender == owner, "not owner"); _; }
-
-    function transferOwnership(address newOwner) public onlyOwner {
-        require(newOwner != address(0), "owner zero");
-        emit OwnershipTransferred(owner, newOwner);
-        owner = newOwner;
-    }
-}
-
-
-/* ============================= MAIN VAULT ============================= */
-contract AggregatorVault is ERC20, IERC4626Minimal, SimpleOwnable {
+/* ------------------------------------------------ */
+contract AggregatorVaultProSimplified is
+    ERC20,
+    ReentrancyGuard,
+    Ownable,
+    Pausable
+{
     using SafeERC20 for IERC20;
 
-    uint256 public constant MAX_BPS = 10_000; // 100%
-    uint256 public constant YEAR_SECONDS = 31_556_952; // 365.2425 days
+    uint256 public constant MAX_BPS = 10_000;
+    uint256 public constant SECONDS_PER_YEAR = 31_556_952;
 
     IERC20 public immutable underlying;
-    uint8 private immutable _assetDecimals;
+    uint8 private immutable assetDecimals;
 
+    /* ---------- Strategy Struct ---------- */
     struct Strategy {
-        address addr; // strategy contract
-        uint256 debtRatioBps; // target ratio in BPS
-        uint256 totalDebt; // current allocated debt
-        bool active; // is strategy active
+        address addr;
+        uint256 debtRatioBps; // allocation %
+        uint256 totalDebt;     // capital allocated
+        bool active;
+    }
+    
+    struct StrategyView {
+        address addr;
+        bool active;
+        uint256 debtRatioBps;
+        uint256 totalDebt;
+        uint256 estimatedAssets;
     }
 
-    Strategy[] public strategies; // list of strategies
-    mapping(address => uint256) public strategyIndex; // 1-based index // 0 = not found
-    address[] public withdrawalQueue; // order of strategies for withdrawals
+    Strategy[] public strategies;
+    mapping(address => uint256) public indexOf; // index+1
+    address[] public withdrawalQueue;
 
-    uint256 public totalIdle; // idle funds in vault
-    uint256 public totalDebt; // total allocated to strategies
+    /* ---------- Vault Balances ---------- */
+    uint256 public totalIdle;
+    uint256 public totalDebt;
 
-    address public feeRecipient; // fees receiver
-    uint256 public managementFeeBpsPerYear; // management fee in BPS per yearS
-    uint256 public performanceFeeBps; // performance fee in BPS
-    uint256 public lastAccruedTimestamp; // last management fee timestamp
+    /* ---------- Fees ---------- */
+    address public feeRecipient;
+    uint256 public managementFeeBps;
+    uint256 public performanceFeeBps;
+    uint256 public lastFeeTimestamp;
 
-    bool public emergencyShutdown; // emergency shutdown flag
+    /* ---------- Limits ---------- */
+    uint256 public depositLimit = type(uint256).max;
+    bool public emergencyShutdown;
 
-    event StrategyAdded(address indexed strat, uint256 debtRatioBps); // strategy added
-    event StrategyRemoved(address indexed strat); 
-    event WithdrawalQueueSet(address[] queue); // withdrawal queue set for strategies that will be pulled from first
-    event Reported(address indexed strat, uint256 gain, uint256 loss, uint256 payback);
+    /* ---------- Events ---------- */
+    event Deposit(address caller, address owner, uint256 assets, uint256 shares);
+    event Withdraw(address caller, address receiver, uint256 assets, uint256 shares);
+    event StrategyAdded(address strat, uint256 ratio);
+    event StrategyRemoved(address strat);
+    event StrategyPush(address strat, uint256 amount);
+    event StrategyPull(address strat, uint256 amount);
+    event Rebalanced();
 
-    event StrategyPull(address indexed strat, uint256 amount);   /// rebalance for pull
-    event StrategyPush(address indexed strat, uint256 amount);   /// rebalance for push
-    event FullyRebalanced(uint256 idleBefore, uint256 idleAfter); /// rebalance complete in order to maintain ratios
-
-
+    /* ---------------------------------------------------------- */
     constructor(
-        IERC20 _asset,
-        string memory name_,
-        string memory symbol_,
-        address initialOwner_
-    ) ERC20(name_, symbol_) SimpleOwnable(initialOwner_) {
-        require(address(_asset) != address(0), "asset zero");
-        underlying = _asset; 
-        _assetDecimals = ERC20(address(_asset)).decimals();
-        feeRecipient = initialOwner_;
-        managementFeeBpsPerYear = 200;
-        performanceFeeBps = 1000;
-        lastAccruedTimestamp = block.timestamp;
+        IERC20 _underlying,
+        string memory _name,
+        string memory _symbol,
+        address _owner
+    ) ERC20(_name, _symbol) Ownable(_owner) {
+        underlying = _underlying;
+        assetDecimals = ERC20(address(_underlying)).decimals();
+        feeRecipient = _owner;
+
+        managementFeeBps = 200; // 2%
+        performanceFeeBps = 1000; // 10%
+        lastFeeTimestamp = block.timestamp;
     }
 
-    /* ----------------------------- ERC4626 view ------------------------------ */
+    /* ============================================================
+                        VIEW FUNCTIONS
+       ============================================================ */
 
-    function asset() external view override returns (address) { return address(underlying); }
-    function decimals() public view override returns (uint8) { return _assetDecimals; }
+    function decimals() public view override returns (uint8) {
+        return assetDecimals;
+    }
 
-    function totalAssets() public view override returns (uint256 sum) {
+    function asset() external view returns (address) {
+        return address(underlying);
+    }
+
+    function strategiesLength() external view returns (uint256) {
+        return strategies.length;
+    }
+
+    function totalAssets() public view returns (uint256 sum) {
         sum = totalIdle;
         uint256 len = strategies.length;
-        for (uint256 i; i < len; ) {
+
+        for (uint256 i; i < len; ++i) {
             Strategy storage s = strategies[i];
-            if (s.active) {
-                try IStrategy(s.addr).estimatedTotalAssets() returns (uint256 v) {
-                    sum += v;
-                } catch {}
-            }
-            unchecked { ++i; }
+            if (!s.active) continue;
+            try IStrategy(s.addr).estimatedTotalAssets() returns (uint256 est) {
+                sum += est;
+            } catch {}
         }
     }
 
-    function convertToShares(uint256 assets) public view override returns (uint256) {
+    function getStrategy(uint256 idx)
+        external
+        view
+        returns (address addr, uint256 ratio, uint256 debt, bool active)
+    {
+        Strategy storage s = strategies[idx];
+        return (s.addr, s.debtRatioBps, s.totalDebt, s.active);
+    }
+
+    /* ============================================================
+                        ERC4626-LIKE LOGIC
+       ============================================================ */
+
+    function convertToShares(uint256 assets) public view returns (uint256) {
+        uint256 ts = totalSupply();
         uint256 ta = totalAssets();
-        uint256 s = totalSupply();
-        if (s == 0 || ta == 0) return assets;
-        return (assets * s) / ta;
+        if (ts == 0 || ta == 0) return assets;
+        return (assets * ts) / ta;
     }
 
-    function convertToAssets(uint256 shares) public view override returns (uint256) {
-        uint256 s = totalSupply();
-        if (s == 0) return 0;
-        uint256 ta = totalAssets();
-        return (shares * ta) / s;
+    function convertToAssets(uint256 shares) public view returns (uint256) {
+        uint256 ts = totalSupply();
+        if (ts == 0) return 0;
+        return (shares * totalAssets()) / ts;
     }
 
-    /* ------------------------- Deposit / Mint ------------------------- */
-    // Rebalance called after deposit/mint to allocate new idle funds
-    function deposit(uint256 assets, address recv) external override returns (uint256 shares) {
-        require(!emergencyShutdown, "shutdown");
-        underlying.safeTransferFrom(msg.sender, address(this), assets); // pull underlying
-        totalIdle += assets;
+    /* --------------------------- Deposit --------------------------- */
+    function deposit(uint256 assets, address receiver)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 shares)
+    {
+        require(assets > 0, "zero");
+        require(totalAssets() + assets <= depositLimit, "limit");
 
-        shares = totalSupply() == 0 ? assets : convertToShares(assets);
-        _mint(recv, shares);
-        emit Deposit(msg.sender, recv, assets, shares);
-
-        _rebalanceCore(); /// NEW: rebalance after deposit
-    }
-
-    function mint(uint256 shares, address recv) external override returns (uint256 assets) {
-        require(!emergencyShutdown, "shutdown");
-
-        assets = convertToAssets(shares);
         underlying.safeTransferFrom(msg.sender, address(this), assets);
         totalIdle += assets;
-        _mint(recv, shares);
-        emit Deposit(msg.sender, recv, assets, shares);
 
-        _rebalanceCore(); /// NEW
+        shares = convertToShares(assets);
+        _mint(receiver, shares);
+
+        emit Deposit(msg.sender, receiver, assets, shares);
+        _rebalance();
     }
 
-    /* --------------------------- Withdraw / Redeem ---------------------------- */
-
-    function _withdrawFromQueue(uint256 need) internal returns (uint256) {
-        if (need == 0) return 0;
-
-        uint256 len = withdrawalQueue.length;
-        uint256 pulled;
-
-        for (uint256 i; i < len && need > 0; ) {
-            address strat = withdrawalQueue[i]; // strategy to withdraw from in order
-            uint256 idx = strategyIndex[strat]; // 1-based index based on above mapping
-
-            if (idx != 0) {
-                Strategy storage s = strategies[idx - 1]; // get strategy structs metadata
-                if (s.active && s.totalDebt != 0) { // only withdraw from active strategies with debt
-                    uint256 req = s.totalDebt > need ? need : s.totalDebt;
-                    uint256 actual;
-
-                    (bool ok, bytes memory data) = strat.call(
-                        abi.encodeWithSelector(IStrategy.withdraw.selector, req)
-                    );
-
-                    if (ok && data.length >= 32) {
-                        assembly { actual := mload(add(data, 32)) }
-                    }
-                    if (actual > 0) {
-                        if (actual > s.totalDebt) actual = s.totalDebt;
-                        s.totalDebt -= actual;
-                        totalDebt -= actual;
-                        totalIdle += actual;
-                        need -= actual;
-                        pulled += actual;
-                    }
-                }
-            }
-            unchecked { ++i; }
-        }
-        return pulled;
-    }
-
-
-    function withdraw(uint256 assets, address recv, address owner_)
-        external override returns (uint256 shares)
+    /* --------------------------- Withdraw --------------------------- */
+    function withdraw(uint256 assets, address receiver, address owner_)
+        external
+        nonReentrant
+        returns (uint256 shares)
     {
+        require(assets > 0, "zero");
         shares = convertToShares(assets);
 
-        if (owner_ != msg.sender) {
+        if (msg.sender != owner_) {
             uint256 allowed = allowance(owner_, msg.sender);
-            require(allowed >= shares, "allowance");
-            _approve(owner_, msg.sender, allowed - shares);
-        }
- 
-        if (assets > totalIdle) _withdrawFromQueue(assets - totalIdle); // try to pull from strategies
-        require(assets <= totalIdle, "insufficient"); // final checks
-
-        _burn(owner_, shares);
-        totalIdle -= assets;
-        underlying.safeTransfer(recv, assets);
-        emit Withdraw(msg.sender, recv, owner_, assets, shares);
-    }
-
-    function redeem(uint256 shares, address recv, address owner_)
-        external override returns (uint256 assets)
-    {
-        if (owner_ != msg.sender) {
-            uint256 allowed = allowance(owner_, msg.sender);
-            require(allowed >= shares, "allowance");
+            require(allowed >= shares, "allow");
             _approve(owner_, msg.sender, allowed - shares);
         }
 
-        assets = convertToAssets(shares);
-        if (assets > totalIdle) _withdrawFromQueue(assets - totalIdle);
-        require(assets <= totalIdle, "insufficient");
+        if (assets > totalIdle) {
+            uint256 need = assets - totalIdle;
+            _withdrawFromQueue(need);
+        }
+
+        require(assets <= totalIdle, "lack");
 
         _burn(owner_, shares);
         totalIdle -= assets;
-        underlying.safeTransfer(recv, assets);
-        emit Withdraw(msg.sender, recv, owner_, assets, shares);
+        underlying.safeTransfer(receiver, assets);
+
+        emit Withdraw(msg.sender, receiver, assets, shares);
     }
 
-    /* ----------------------- Strategy Management ------------------------ */
+    /* ============================================================
+                       STRATEGY MANAGEMENT
+       ============================================================ */
 
-    function addStrategy(address strat, uint256 ratioBps) external onlyOwner {
-        require(ratioBps <= MAX_BPS, "too high");
-        require(IStrategy(strat).want() == address(underlying), "wrong asset");
+    function addStrategy(address strat, uint256 bps) external onlyOwner {
+        require(bps <= MAX_BPS, "bad");
+        require(IStrategy(strat).want() == address(underlying), "wrong token");
 
-        uint256 sum = ratioBps;
-        for (uint256 i; i < strategies.length; ) {
+        uint256 sum = bps;
+        for (uint256 i; i < strategies.length; ++i)
             sum += strategies[i].debtRatioBps;
-            unchecked { ++i; }
-        }
-        require(sum <= MAX_BPS, "ratios exceed");
 
-        strategies.push(Strategy(strat, ratioBps, 0, true));
-        strategyIndex[strat] = strategies.length;
+        require(sum <= MAX_BPS, "ratio > 100%");
+
+        strategies.push(Strategy({
+            addr: strat,
+            debtRatioBps: bps,
+            totalDebt: 0,
+            active: true
+        }));
+
+        indexOf[strat] = strategies.length;
         withdrawalQueue.push(strat);
-        emit StrategyAdded(strat, ratioBps);
 
-        _rebalanceCore();
+        emit StrategyAdded(strat, bps);
     }
 
+    function removeStrategy(address strat) external onlyOwner {
+        uint256 idx = indexOf[strat];
+        require(idx != 0, "no");
+        idx--;
 
-    /* -------------------------- REPORT (harvest) -------------------------- */
+        Strategy storage s = strategies[idx];
+        s.active = false;
 
-    function report(uint256 gain, uint256 loss, uint256 payback) external {
-        uint256 idx = strategyIndex[msg.sender];
-        require(idx != 0, "not strat");
+        /* force pull all debt */
+        if (s.totalDebt > 0) {
+            uint256 pulled = IStrategy(strat).withdraw(s.totalDebt);
+            if (pulled > s.totalDebt) pulled = s.totalDebt;
 
-        Strategy storage s = strategies[idx - 1];
-        require(s.active, "inactive");
-
-        if (loss > 0) {
-            uint256 d = loss >= s.totalDebt ? s.totalDebt : loss;
-            s.totalDebt -= d;
-            totalDebt -= d;
+            s.totalDebt -= pulled;
+            totalDebt -= pulled;
+            totalIdle += pulled;
         }
 
-        if (payback > 0) {
-            uint256 d = payback >= s.totalDebt ? s.totalDebt : payback;
-            s.totalDebt -= d;
-            totalDebt -= d;
-            totalIdle += payback;
+        /* compact array */
+        uint256 last = strategies.length - 1;
+        if (idx != last) {
+            strategies[idx] = strategies[last];
+            indexOf[strategies[idx].addr] = idx + 1;
+        }
+        strategies.pop();
+        delete indexOf[strat];
+
+        /* remove from queue */
+        uint256 q = withdrawalQueue.length;
+        for (uint256 i; i < q; i++) {
+            if (withdrawalQueue[i] == strat) {
+                withdrawalQueue[i] = withdrawalQueue[q - 1];
+                withdrawalQueue.pop();
+                break;
+            }
         }
 
-        if (gain > 0) totalIdle += gain;
-
-        emit Reported(msg.sender, gain, loss, payback);
-
-        _rebalanceCore();  /// NEW: rebalance on report
+        emit StrategyRemoved(strat);
     }
 
+    /* ============================================================
+                           REBALANCE ENGINE
+       ============================================================ */
 
-    /* =====================================================================
-                          AUTO-REBALANCE ENGINE (NEW)
-       ===================================================================== */
-
-    /// @notice Public function anyone can call (keeper, user, UI)
-    function rebalance() external { _rebalanceCore(); }
-
-    function _rebalanceCore() internal {
-        uint256 idleBefore = totalIdle;
-
-        _pullOverweight();   /// NEW: withdraw from overweight strategies
-        _pushUnderweight();  /// existing allocateIdle() simplified
-
-        emit FullyRebalanced(idleBefore, totalIdle);
+    function rebalance() external nonReentrant {
+        _rebalance();
     }
 
+    function _rebalance() internal {
+        _pullOverweight();
+        _pushUnderweight();
+        emit Rebalanced();
+    }
 
-    /// STEP 1: PULL excess from overweight strategies
     function _pullOverweight() internal {
         uint256 ta = totalAssets();
-        if (ta == 0) return;
-
         uint256 len = strategies.length;
 
-        for (uint256 i; i < len; ) {
-            Strategy storage s = strategies[i]; // get strategy structs metadata
-            if (!s.active || s.debtRatioBps == 0) { // skip inactive or zero-ratio %
-                unchecked { ++i; }
-                continue;
-            }
+        for (uint256 i; i < len; ++i) {
+            Strategy storage s = strategies[i];
+            if (!s.active || s.debtRatioBps == 0) continue;
 
-// compute target debt based on current totalAssets
-// totalAssets = 100,000 USDC
-// strategy has debtRatioBps = 3000 (30%)
-// Then:
-// target = 100,000 * 3000 / 10,000 = 30,000
-
-            uint256 target = (ta * s.debtRatioBps) / MAX_BPS; // target debt for strategy
+            uint256 target = (ta * s.debtRatioBps) / MAX_BPS;
 
             if (s.totalDebt > target) {
                 uint256 excess = s.totalDebt - target;
-                uint256 actual;
 
-// withdraw from strategy
-// Meaning:
-//  - If call succeeded AND strategy returned a 32-byte value
-//  - Load it from memory
-// This ensures compatibility with strategies that:
-//  - return nothing
-//  - return wrong size
-//  - revert
-//  - do not exist (call ok = false)
+                uint256 got = IStrategy(s.addr).withdraw(excess);
+                if (got > excess) got = excess;
 
-                (bool ok, bytes memory data) = s.addr.call(
-                    abi.encodeWithSelector(IStrategy.withdraw.selector, excess) // withdraw excess
-                );
-                if (ok && data.length >= 32) {
-                    assembly { actual := mload(add(data, 32)) } // get returned actual withdrawn
-                }
-                if (actual > 0) {
-                    if (actual > s.totalDebt) actual = s.totalDebt;
+                s.totalDebt -= got;
+                totalDebt -= got;
+                totalIdle += got;
 
-                    s.totalDebt -= actual; // update strategy debt
-                    totalDebt -= actual; // update vault total debt
-                    totalIdle += actual; // increase vault idle funds
-
-                    emit StrategyPull(s.addr, actual); // emit event
-                }
+                emit StrategyPull(s.addr, got);
             }
-
-            unchecked { ++i; }
         }
     }
 
-
-    /// STEP 2: PUSH into underweight strategies using idle funds
     function _pushUnderweight() internal {
         uint256 ta = totalAssets();
         if (ta == 0 || totalIdle == 0) return;
 
         uint256 len = strategies.length;
 
-        for (uint256 i; i < len && totalIdle > 0; ) {
+        for (uint256 i; i < len && totalIdle > 0; ++i) {
             Strategy storage s = strategies[i];
-            if (s.active && s.debtRatioBps > 0) {
-                uint256 target = (ta * s.debtRatioBps) / MAX_BPS;
+            if (!s.active || s.debtRatioBps == 0) continue;
 
-                if (s.totalDebt < target) {
-                    uint256 need = target - s.totalDebt;
-                    uint256 amount = need > totalIdle ? totalIdle : need;
+            uint256 target = (ta * s.debtRatioBps) / MAX_BPS;
 
-                    if (amount > 0) {
-                        underlying.safeTransfer(s.addr, amount);
-                        s.totalDebt += amount;
-                        totalDebt += amount;
-                        totalIdle -= amount;
+            if (s.totalDebt < target) {
+                uint256 need = target - s.totalDebt;
+                uint256 amt = need > totalIdle ? totalIdle : need;
 
-                        emit StrategyPush(s.addr, amount);
-                    }
+                if (amt > 0) {
+                    underlying.safeTransfer(s.addr, amt);
+                    s.totalDebt += amt;
+                    totalDebt += amt;
+                    totalIdle -= amt;
+
+                    emit StrategyPush(s.addr, amt);
                 }
             }
-            unchecked { ++i; }
         }
     }
 
+    /* ============================================================
+                    WITHDRAW QUEUE LOGIC
+       ============================================================ */
 
-    /* --------------------------- Fees (unchanged) --------------------------- */
+    function _withdrawFromQueue(uint256 need) internal {
+        uint256 len = withdrawalQueue.length;
 
-    function _accrueManagementFee() internal {
-        uint256 nowTs = block.timestamp;
-        uint256 elapsed = nowTs - lastAccruedTimestamp;
-        if (elapsed == 0) return;
+        for (uint256 i; i < len && need > 0; ++i) {
+            address strat = withdrawalQueue[i];
+            uint256 idx = indexOf[strat];
+            if (idx == 0) continue;
+            idx--;
 
-        uint256 ta = totalAssets();
-        uint256 feeAssets =
-            (ta * managementFeeBpsPerYear * elapsed) / (MAX_BPS * YEAR_SECONDS);
+            Strategy storage s = strategies[idx];
+            if (!s.active || s.totalDebt == 0) continue;
 
-        if (feeAssets > 0) {
-            uint256 sharesForFee = convertToShares(feeAssets);
-            if (sharesForFee > 0) _mint(feeRecipient, sharesForFee);
+            uint256 req = s.totalDebt < need ? s.totalDebt : need;
+            uint256 got = IStrategy(strat).withdraw(req);
+            if (got > req) got = req;
+
+            s.totalDebt -= got;
+            totalDebt -= got;
+            totalIdle += got;
+
+            need -= got;
+            emit StrategyPull(strat, got);
         }
-        lastAccruedTimestamp = nowTs;
     }
 
+    /* ============================================================
+                              ADMIN
+       ============================================================ */
 
-    /* ----------------------------- Admin tools ------------------------------ */
-
-    function setFeeRecipient(address r) external onlyOwner { feeRecipient = r; }
-    function setManagementFee(uint256 bps) external onlyOwner { managementFeeBpsPerYear = bps; }
-    function setPerformanceFee(uint256 bps) external onlyOwner { performanceFeeBps = bps; }
+    function setDepositLimit(uint256 limit) external onlyOwner {
+        depositLimit = limit;
+    }
 
     function setEmergencyShutdown(bool flag) external onlyOwner {
         emergencyShutdown = flag;
+        if (flag) _pause();
+        else _unpause();
+    }
+
+    /* ============================================================
+                              VIEW
+       ============================================================ */
+
+    function listStrategies()
+        external
+        view 
+        returns (StrategyView[] memory out) 
+    {
+        uint256 len = strategies.length;
+        out = new StrategyView[](len);
+
+        for (uint256 i; i<len; ++i) {
+            Strategy storage s = strategies[i];
+
+            uint256 est = 0;
+            if (!s.active) {
+                try IStrategy(s.addr).estimatedTotalAssets() returns (uint256 r) {
+                    est = r; 
+                } catch {}
+            }
+
+            out[i] = StrategyView({
+                addr: s.addr,
+                active: s.active,
+                debtRatioBps: s.debtRatioBps,
+                totalDebt: s.totalDebt,
+                estimatedAssets: est
+            });
+        }    
     }
 }
+s
